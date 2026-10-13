@@ -23,6 +23,8 @@
 
           packages = [
             python
+            pkgs.ruff
+            pkgs.ty
             pkgs.wireguard-tools
             pkgs.iproute2
             pkgs.iputils
