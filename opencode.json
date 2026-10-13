@@ -8,26 +8,14 @@
       "git diff*": "allow",
       "git log*": "allow",
       "git show*": "allow",
-      "git branch*": "allow",
-      "git checkout": "allow",
-      "git checkout -b *": "allow",
-      "git switch *": "allow",
-      "git add *": "allow",
-      "git commit*": "allow",
-      "git push": "allow",
-      "git push -u origin *": "allow",
-      "git push origin *": "allow",
       "git fetch*": "allow",
       "git remote -v": "allow",
 
-      "gh pr create*": "allow",
       "gh pr view*": "allow",
       "gh pr list*": "allow",
       "gh pr status": "allow",
       "gh pr checks*": "allow",
       "gh pr diff*": "allow",
-      "gh pr edit*": "allow",
-      "gh pr comment*": "allow",
       "gh run list*": "allow",
       "gh run view*": "allow",
       "gh run watch*": "allow",
@@ -35,7 +23,6 @@
 
       "nix develop*": "allow",
       "nix build*": "allow",
-      "nix flake update*": "allow",
       "nix flake check*": "allow",
       "nix flake lock*": "allow",
 
@@ -52,8 +39,11 @@
 
       "git push --force*": "ask",
       "git push -f *": "ask",
+      "git push origin * --force*": "ask",
+      "git push origin +*": "ask",
       "git branch -D *": "ask",
-      "git branch -d *": "ask"
+      "git branch -d *": "ask",
+      "git branch --delete*": "ask"
     }
   }
 }
