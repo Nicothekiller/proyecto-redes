@@ -41,5 +41,15 @@
             wg --version
           '';
         };
+
+        devShells.ci = pkgs.mkShell {
+          name = "redes-ci";
+
+          packages = [
+            python
+            pkgs.ruff
+            pkgs.ty
+          ];
+        };
       });
 }
