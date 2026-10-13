@@ -16,6 +16,10 @@
           requests
           pytest
         ]);
+        checkTools = [
+          pkgs.ruff
+          pkgs.ty
+        ];
       in
       {
         devShells.default = pkgs.mkShell {
@@ -23,8 +27,6 @@
 
           packages = [
             python
-            pkgs.ruff
-            pkgs.ty
             pkgs.wireguard-tools
             pkgs.iproute2
             pkgs.iputils
@@ -33,13 +35,21 @@
             pkgs.sqlite
             pkgs.tcpdump
             pkgs.netcat-gnu
-          ];
+          ] ++ checkTools;
 
           shellHook = ''
             echo "redes-overlay devshell"
             python3 --version
             wg --version
           '';
+        };
+
+        devShells.ci = pkgs.mkShell {
+          name = "redes-ci";
+
+          packages = [
+            python
+          ] ++ checkTools;
         };
       });
 }
