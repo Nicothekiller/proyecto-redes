@@ -20,6 +20,8 @@
       "gh run view*": "allow",
       "gh run watch*": "allow",
       "gh auth status": "allow",
+      "gh issue view*": "allow",
+      "gh issue list*": "allow",
 
       "nix develop*": "allow",
       "nix build*": "allow",
