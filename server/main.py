@@ -1,6 +1,6 @@
-"""M1a: minimal in-memory WireGuard coordination server.
+"""M1b: minimal WireGuard coordination server with SQLite persistence.
 
-Single process, dicts only, no SQLite yet. Data is lost on restart (expected).
+Same API as M1a, backed by SQLite (WAL mode) via SQLAlchemy.
 
 Run:
     API_KEY=<key> uvicorn server.main:app --host 0.0.0.0 --port 8000
@@ -20,7 +20,7 @@ from server.store.base import (
     UnknownNodeError,
 )
 
-app = FastAPI(title="headscale-lite (M1a)")
+app = FastAPI(title="headscale-lite (M1b)")
 app.include_router(nodes.router)
 
 

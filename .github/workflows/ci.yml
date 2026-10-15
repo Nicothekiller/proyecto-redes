@@ -18,10 +18,13 @@ jobs:
       - uses: cachix/install-nix-action@v31
 
       - name: Ruff format check
-        run: nix develop .#ci -c ruff format --check server
+        run: nix develop .#ci -c ruff format --check server tests
 
       - name: Ruff lint
-        run: nix develop .#ci -c ruff check server
+        run: nix develop .#ci -c ruff check server tests
 
       - name: Type check
-        run: nix develop .#ci -c ty check server
+        run: nix develop .#ci -c ty check server tests
+
+      - name: Test check
+        run: nix develop .#ci -c pytest
