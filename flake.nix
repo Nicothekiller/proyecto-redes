@@ -15,6 +15,7 @@
           uvicorn
           requests
           pytest
+          sqlalchemy
         ]);
         checkTools = [
           pkgs.ruff
