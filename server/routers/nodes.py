@@ -5,7 +5,7 @@ import uuid
 from fastapi import APIRouter, Depends
 
 from server.auth import require_auth
-from server.schemas import HeartbeatIn, PeerOut, RegisterIn, RegisterOut
+from server.schemas import HeartbeatIn, NodeOut, PeerOut, RegisterIn, RegisterOut
 from server.store import get_store
 
 router = APIRouter(tags=["nodes"])
@@ -36,3 +36,9 @@ def heartbeat(body: HeartbeatIn, _auth: bool = Depends(require_auth)) -> None:
 @router.delete("/nodes/{node_id}", status_code=204)
 def delete(node_id: uuid.UUID, _auth: bool = Depends(require_auth)) -> None:
     get_store().delete(node_id)
+
+
+# TODO: move to a new router specifically for the dashboard api
+@router.get("/nodes", response_model=list[NodeOut])
+def nodes(_auth: bool = Depends(require_auth)) -> list[NodeOut]:
+    return [NodeOut.model_validate(node, from_attributes=True) for node in get_store().nodes()]

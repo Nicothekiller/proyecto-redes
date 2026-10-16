@@ -11,6 +11,7 @@ from server.config import FIRST_HOST_SUFFIX, LAST_HOST_SUFFIX, OVERLAY_NET
 from server.store.base import (
     BaseStore,
     DuplicatePubkeyError,
+    NodeRecord,
     PeerRecord,
     PoolExhaustedError,
     UnknownNodeError,
@@ -25,6 +26,16 @@ def _to_peer(node: Node) -> PeerRecord:
         overlay_ip=node.overlay_ip,
         pubkey=node.pubkey,
         endpoint=node.endpoint,
+    )
+
+
+def _to_node_record(node: Node) -> NodeRecord:
+    return NodeRecord(
+        node_id=node.node_id,
+        overlay_ip=node.overlay_ip,
+        pubkey=node.pubkey,
+        endpoint=node.endpoint,
+        last_heartbeat=node.last_heartbeat,
     )
 
 
@@ -112,3 +123,10 @@ class SQLiteStore(BaseStore):
 
                 session.delete(node)
                 session.flush()
+
+    def nodes(self) -> list[NodeRecord]:
+        with session_scope() as session:
+            return [
+                _to_node_record(i)
+                for i in session.scalars(select(Node).order_by(Node.overlay_ip)).all()
+            ]

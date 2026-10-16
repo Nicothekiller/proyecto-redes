@@ -3,6 +3,7 @@ from __future__ import annotations
 import uuid
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
+from datetime import datetime
 
 
 class PoolExhaustedError(Exception):
@@ -23,6 +24,15 @@ class PeerRecord:
     overlay_ip: str
     pubkey: str
     endpoint: str
+
+
+@dataclass(frozen=True)
+class NodeRecord:
+    node_id: uuid.UUID
+    overlay_ip: str
+    pubkey: str
+    endpoint: str
+    last_heartbeat: datetime
 
 
 class BaseStore(ABC):
@@ -58,3 +68,7 @@ class BaseStore(ABC):
 
         Raises UnknownNodeError if node doesnt exist.
         """
+
+    @abstractmethod
+    def nodes(self) -> list[NodeRecord]:
+        """Returns a list of all nodes with their full data."""

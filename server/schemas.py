@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import uuid
+from datetime import datetime
 
 from pydantic import BaseModel, Field
 
@@ -26,3 +27,11 @@ class RegisterOut(BaseModel):
 class HeartbeatIn(BaseModel):
     node_id: uuid.UUID
     endpoint: str | None = Field(default=None, min_length=1)
+
+
+class NodeOut(BaseModel):
+    node_id: uuid.UUID
+    overlay_ip: str
+    pubkey: str
+    endpoint: str
+    last_heartbeat: datetime
