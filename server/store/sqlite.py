@@ -103,11 +103,12 @@ class SQLiteStore(BaseStore):
                 node.endpoint = endpoint
 
     def delete(self, node_id: uuid.UUID) -> None:
-        with session_scope() as session:
-            node = session.get(Node, node_id)
+        with self._lock:
+            with session_scope() as session:
+                node = session.get(Node, node_id)
 
-            if node is None:
-                raise UnknownNodeError("Node isn't registered in the system")
+                if node is None:
+                    raise UnknownNodeError("Node isn't registered in the system")
 
-            session.delete(node)
-            session.flush()
+                session.delete(node)
+                session.flush()
