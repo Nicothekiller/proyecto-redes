@@ -27,3 +27,4 @@ DATABASE_URL = os.environ.get("DATABASE_URL", "sqlite:///./overlay.db")
 OVERLAY_NET = ipaddress.ip_network("10.100.0.0/24")
 FIRST_HOST_SUFFIX = 2
 LAST_HOST_SUFFIX = 254
+OFFLINE_AFTER_S = int(os.environ.get("OFFLINE_AFTER_S", "30"))

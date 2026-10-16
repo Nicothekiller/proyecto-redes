@@ -57,7 +57,6 @@ class SQLiteStore(BaseStore):
                     node.pubkey = pubkey
                     node.endpoint = endpoint
                     node.last_heartbeat = datetime.now(UTC)
-                    node.deleted = False
                 else:
                     overlay_ip = self._allocate_ip(session)
                     node = Node(
@@ -72,9 +71,7 @@ class SQLiteStore(BaseStore):
                 peers = [
                     _to_peer(i)
                     for i in session.scalars(
-                        select(Node)
-                        .where(Node.node_id != node_id, Node.deleted.is_(False))
-                        .order_by(Node.overlay_ip)
+                        select(Node).where(Node.node_id != node_id).order_by(Node.overlay_ip)
                     ).all()
                 ]
                 return node.overlay_ip, peers
@@ -83,16 +80,14 @@ class SQLiteStore(BaseStore):
         with session_scope() as session:
             node = session.get(Node, node_id)
 
-            if node is None or node.deleted:
+            if node is None:
                 raise UnknownNodeError("Node isn't registered in the system")
 
             # couldnt stop myself from making the 1 liner
             return [
                 _to_peer(i)
                 for i in session.scalars(
-                    select(Node)
-                    .where(Node.node_id != node_id, Node.deleted.is_(False))
-                    .order_by(Node.overlay_ip)
+                    select(Node).where(Node.node_id != node_id).order_by(Node.overlay_ip)
                 ).all()
             ]
 
@@ -100,9 +95,19 @@ class SQLiteStore(BaseStore):
         with session_scope() as session:
             node = session.get(Node, node_id)
 
-            if node is None or node.deleted:
+            if node is None:
                 raise UnknownNodeError("Node isn't registered in the system")
 
             node.last_heartbeat = datetime.now(UTC)
             if endpoint is not None:
                 node.endpoint = endpoint
+
+    def delete(self, node_id: uuid.UUID) -> None:
+        with session_scope() as session:
+            node = session.get(Node, node_id)
+
+            if node is None:
+                raise UnknownNodeError("Node isn't registered in the system")
+
+            session.delete(node)
+            session.flush()
