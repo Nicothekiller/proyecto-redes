@@ -3,7 +3,6 @@ from __future__ import annotations
 import uuid
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from datetime import datetime
 
 
 class PoolExhaustedError(Exception):
@@ -26,15 +25,6 @@ class PeerRecord:
     endpoint: str
 
 
-@dataclass
-class NodeRecord:
-    pubkey: str
-    overlay_ip: str
-    endpoint: str
-    last_heartbeat: datetime
-    deleted: bool = False
-
-
 class BaseStore(ABC):
     @abstractmethod
     def register(
@@ -43,22 +33,28 @@ class BaseStore(ABC):
         """Idempotent join: known node_id returns its same overlay_ip.
 
         Returns (overlay_ip, peers) where peers lists every other
-        non-deleted node.
+        node.
 
-        Raises DuplicatePubkeyError if pubkey belongs to another
-        non-deleted node.
+        Raises DuplicatePubkeyError if pubkey belongs to another node.
         """
 
     @abstractmethod
     def peers(self, node_id: uuid.UUID) -> list[PeerRecord]:
-        """Returns every non-deleted node except the requester, sorted by overlay_ip.
+        """Returns every node except the requester, sorted by overlay_ip.
 
-        Raises UnknownNodeError if the requester is unknown or deleted.
+        Raises UnknownNodeError if the requester is unknown.
         """
 
     @abstractmethod
     def heartbeat(self, node_id: uuid.UUID, endpoint: str | None = None) -> None:
         """Updates when a node was last seen, and its endpoint if given.
 
-        Raises UnknownNodeError if the node is unknown or deleted.
+        Raises UnknownNodeError if the node is unknown.
+        """
+
+    @abstractmethod
+    def delete(self, node_id: uuid.UUID) -> None:
+        """Deletes a node from the system.
+
+        Raises UnknownNodeError if node doesnt exist.
         """

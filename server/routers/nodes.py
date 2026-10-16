@@ -31,3 +31,8 @@ def peers(node_id: uuid.UUID, _auth: bool = Depends(require_auth)) -> list[PeerO
 @router.post("/heartbeat", status_code=204)
 def heartbeat(body: HeartbeatIn, _auth: bool = Depends(require_auth)) -> None:
     get_store().heartbeat(body.node_id, body.endpoint)
+
+
+@router.delete("/nodes/{node_id}", status_code=204)
+def delete(node_id: uuid.UUID, _auth: bool = Depends(require_auth)) -> None:
+    get_store().delete(node_id)

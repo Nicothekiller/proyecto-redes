@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import threading
 import uuid
 
 import pytest
@@ -12,13 +13,6 @@ from server.store.sqlite import SQLiteStore
 A = uuid.UUID("11111111-1111-1111-1111-111111111111")
 B = uuid.UUID("22222222-2222-2222-2222-222222222222")
 C = uuid.UUID("33333333-3333-3333-3333-333333333333")
-
-
-def _delete(node_id: uuid.UUID) -> None:
-    with session_scope() as session:
-        node = session.get(Node, node_id)
-        assert node is not None
-        node.deleted = True
 
 
 def test_register_allocates_sequential_ips(store: BaseStore) -> None:
@@ -49,15 +43,53 @@ def test_register_rejects_duplicate_pubkey(store: BaseStore) -> None:
         store.register(C, "pubA", "10.0.0.3:51820")
 
 
-def test_register_rejects_pubkey_of_deleted_node(store: BaseStore) -> None:
+def test_register_allows_pubkey_reuse_after_delete(store: BaseStore) -> None:
+    store.register(A, "pubA", "10.0.0.1:51820")
+    store.delete(A)
+
+    ip_c, _ = store.register(C, "pubA", "10.0.0.3:51820")
+
+    assert ip_c == "10.100.0.2"
+    with pytest.raises(UnknownNodeError):
+        store.peers(A)
+
+
+def test_delete_hides_node_from_peers(store: BaseStore) -> None:
+    store.register(A, "pubA", "10.0.0.1:51820")
+    store.register(B, "pubB", "10.0.0.2:51820")
+
+    store.delete(A)
+
+    assert store.peers(B) == []
+    with pytest.raises(UnknownNodeError):
+        store.peers(A)
+    with pytest.raises(UnknownNodeError):
+        store.heartbeat(A, "10.0.0.1:51820")
+
+
+def test_delete_unknown_or_already_deleted_raises(store: BaseStore) -> None:
+    with pytest.raises(UnknownNodeError):
+        store.delete(A)
+
+    store.register(A, "pubA", "10.0.0.1:51820")
+    store.delete(A)
+
+    with pytest.raises(UnknownNodeError):
+        store.delete(A)
+
+
+def test_delete_frees_ip_and_identity(store: BaseStore) -> None:
     ip_a, _ = store.register(A, "pubA", "10.0.0.1:51820")
-    _delete(A)
+    store.register(B, "pubB", "10.0.0.2:51820")
 
-    with pytest.raises(DuplicatePubkeyError):
-        store.register(C, "pubA", "10.0.0.3:51820")
+    store.delete(A)
 
-    assert store.register(C, "pubC", "10.0.0.3:51820")[0] == "10.100.0.3"
-    assert ip_a == "10.100.0.2"
+    ip_c, _ = store.register(C, "pubC", "10.0.0.3:51820")
+    ip_a_again, _ = store.register(A, "pubA", "10.0.0.1:51820")
+
+    assert ip_c == ip_a
+    assert ip_a_again == "10.100.0.4"
+    assert [p.node_id for p in store.peers(C)] == [B, A]
 
 
 def test_peers_excludes_self_and_deleted(store: BaseStore) -> None:
@@ -67,7 +99,7 @@ def test_peers_excludes_self_and_deleted(store: BaseStore) -> None:
 
     assert [p.node_id for p in store.peers(A)] == [B, C]
 
-    _delete(B)
+    store.delete(B)
     assert [p.node_id for p in store.peers(A)] == [C]
 
 
@@ -78,7 +110,7 @@ def test_peers_unknown_node_raises(store: BaseStore) -> None:
 
 def test_peers_deleted_requester_raises(store: BaseStore) -> None:
     store.register(A, "pubA", "10.0.0.1:51820")
-    _delete(A)
+    store.delete(A)
 
     with pytest.raises(UnknownNodeError):
         store.peers(A)
@@ -118,22 +150,10 @@ def test_heartbeat_unknown_node_raises(store: BaseStore) -> None:
 
 def test_heartbeat_deleted_node_raises(store: BaseStore) -> None:
     store.register(A, "pubA", "10.0.0.1:51820")
-    _delete(A)
+    store.delete(A)
 
     with pytest.raises(UnknownNodeError):
         store.heartbeat(A, "10.0.0.1:51820")
-
-
-def test_revive_deleted_node_keeps_ip(store: BaseStore) -> None:
-    ip_b, _ = store.register(B, "pubB", "10.0.0.2:51820")
-    store.register(A, "pubA", "10.0.0.1:51820")
-    _delete(B)
-    assert [p.node_id for p in store.peers(A)] == []
-
-    revived_ip, _ = store.register(B, "pubB", "10.0.0.2:51820")
-
-    assert revived_ip == ip_b
-    assert [p.node_id for p in store.peers(A)] == [B]
 
 
 def test_restart_keeps_ips(store: BaseStore) -> None:
@@ -148,3 +168,29 @@ def test_restart_keeps_ips(store: BaseStore) -> None:
 
     assert (ip_a_again, ip_b_again) == (ip_a, ip_b)
     assert [p.node_id for p in restarted.peers(A)] == [B]
+
+
+def test_concurrent_registers_allocates_unique_ips(store: BaseStore) -> None:
+    count = 16
+    node_ids = [uuid.UUID(f"{i:032x}") for i in range(1, count + 1)]
+    results: list[tuple[str, list]] = []
+    errors: list[Exception] = []
+    barrier = threading.Barrier(count)
+
+    def join(node_id: uuid.UUID) -> None:
+        try:
+            barrier.wait(timeout=10)
+            results.append(store.register(node_id, f"pub-{node_id}", "10.0.0.1:51820"))
+        except Exception as exc:
+            errors.append(exc)
+
+    threads = [threading.Thread(target=join, args=(n,)) for n in node_ids]
+    for thread in threads:
+        thread.start()
+    for thread in threads:
+        thread.join()
+
+    assert not errors, errors
+    ips = sorted((ip for ip, _ in results), key=lambda ip: int(ip.split(".")[-1]))
+    assert ips == [f"10.100.0.{n}" for n in range(2, count + 2)]
+    assert {p.node_id for p in store.peers(node_ids[0])} == set(node_ids[1:])

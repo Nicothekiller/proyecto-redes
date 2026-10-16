@@ -82,7 +82,7 @@ Single Python process, dicts only, no SQLite yet. Data is lost on restart - expe
 
 State:
 ```
-nodes: dict[node_id -> {pubkey, overlay_ip, endpoint, last_heartbeat, deleted}]
+nodes: dict[node_id -> {pubkey, overlay_ip, endpoint, last_heartbeat}]
 pubkey_index: dict[pubkey -> node_id]
 ip_pool: next free host in 10.100.0.0/24, start .2 (.1 reserved), free list for reuse
 API_KEY: from env var, `Authorization: Bearer <key>`
@@ -90,9 +90,9 @@ API_KEY: from env var, `Authorization: Bearer <key>`
 
 API v0:
 * `POST /register` in `{node_id, pubkey, endpoint}` + Bearer auth -> out `{overlay_ip, peers[]}`.
-  If `node_id` known and not deleted: return same `overlay_ip` (stable identity).
+  If `node_id` known: return same `overlay_ip` (stable identity).
   Else: allocate next free IP under a lock (avoid double-assign on simultaneous joins), store, return it.
-* `GET /peers?node_id=...` + Bearer auth -> `[{node_id, overlay_ip, pubkey, endpoint}]` for all non-deleted nodes except requester.
+* `GET /peers?node_id=...` + Bearer auth -> `[{node_id, overlay_ip, pubkey, endpoint}]` for all nodes except requester.
 * `POST /heartbeat` in `{node_id, endpoint?}` -> update `last_heartbeat`, update endpoint if changed.
 
 Rules v0:
@@ -105,7 +105,7 @@ Test M1a: `curl` register A + B, hand-write two `wg0.conf`, `ping 10.100.0.x` wo
 
 ### M1b: add persistence (after M1a works)
 
-Swap dicts for SQLite (WAL mode), same API. Add UNIQUE on `node_id, pubkey, overlay_ip`. Allocation inside a transaction. Server restart keeps same IPs. Add `deleted` flag to separate offline-temporary vs removed.
+Swap dicts for SQLite (WAL mode), same API. Add UNIQUE on `node_id, pubkey, overlay_ip`. Allocation inside a transaction. Server restart keeps same IPs. Add `deleted` flag to separate offline-temporary vs removed (superseded in M3: hard delete, no flag).
 
 ---
 
@@ -130,9 +130,9 @@ Test: fresh `join` -> pingable within polling interval + handshake. Restart keep
 Owner: Nic (server) + Felipe (client). Needs both sides.
 
 Server (Nic):
-* Offline rule: `now - last_heartbeat > 30s` -> `offline`. Keep entry. Explicit `POST /delete` or `DELETE /nodes/:id` -> `deleted=true`, excluded from `/peers`, IP quarantined (don't reassign immediately).
+* Offline rule: `now - last_heartbeat > 30s` -> `offline`, computed from `last_heartbeat` on the client/dashboard side (`OFFLINE_AFTER_S` in server config). Entry stays in `/peers`. Explicit `DELETE /nodes/:id` -> row removed, excluded from `/peers`, IP immediately reusable (client contract: `wg-quick down` before delete). Rejoin after delete = new node: fresh IP.
 * Concurrency: allocation in one transaction / lock. Simultaneous joins never get same IP. Same `node_id` re-register returns same IP; new `node_id` with duplicate `pubkey` rejected.
-* Peer updates preserve keys: `/peers` output is deterministic order, includes only non-deleted nodes. No key rotation here.
+* Peer updates preserve keys: `/peers` output is deterministic order, includes only live nodes. No key rotation here.
 * `AllowedIPs` stays 1:1 `overlay_ip/32 -> pubkey`. Server never emits overlapping ranges.
 
 Client (Felipe):
@@ -148,7 +148,7 @@ Owner: Nic (serves UI + API), Felipe reviews against client behavior.
 
 * Same REST API the clients use, plus read endpoints for UI: `GET /nodes`, `GET /status`. No control actions except maybe `Ping now` trigger.
 * Three separate columns, never merged (teacher requirement):
-  1. `registered` - in DB, not deleted.
+  1. `registered` - in DB (rows are live nodes; delete removes the row).
   2. `heartbeat recent` - `last_heartbeat < 30s ago`.
   3. `connectivity proven` - result + timestamp of last active probe (ping over overlay or fresh handshake delta). Old handshake age or cumulative byte counters alone do NOT count.
 * Per node: overlay IP, truncated pubkey (`abcd...wxyz`), endpoint, last heartbeat age, peer count.
