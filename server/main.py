@@ -13,7 +13,7 @@ import uvicorn
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 
-from server.routers import nodes
+from server.routers import dashboard, nodes
 from server.store.base import (
     DuplicatePubkeyError,
     PoolExhaustedError,
@@ -22,6 +22,7 @@ from server.store.base import (
 
 app = FastAPI(title="headscale-lite (M1b)")
 app.include_router(nodes.router)
+app.include_router(dashboard.router)
 
 
 def _error(status_code: int, detail: str) -> JSONResponse:
