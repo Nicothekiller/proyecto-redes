@@ -35,6 +35,37 @@ class NodeRecord:
     last_heartbeat: datetime
 
 
+@dataclass(frozen=True)
+class PeerReportRecord:
+    """A client's report about one peer. `last_handshake` is epoch seconds, 0 = never."""
+
+    peer_id: uuid.UUID
+    last_handshake: int
+    rx_bytes: int
+    tx_bytes: int
+    endpoint: str | None = None
+    probe_ok: bool | None = None
+    probe_rtt_ms: float | None = None
+
+
+@dataclass(frozen=True)
+class PairRecord:
+    """A directed report, from `reporter` about `peer`."""
+
+    reporter: uuid.UUID
+    peer: uuid.UUID
+    reporter_overlay_ip: str
+    peer_overlay_ip: str
+    endpoint: str | None
+    last_handshake: int
+    rx_bytes: int
+    tx_bytes: int
+    probe_ok: bool | None
+    probe_rtt_ms: float | None
+    probe_ran_at: datetime | None
+    reported_at: datetime
+
+
 class BaseStore(ABC):
     @abstractmethod
     def register(
@@ -56,10 +87,19 @@ class BaseStore(ABC):
         """
 
     @abstractmethod
-    def heartbeat(self, node_id: uuid.UUID, endpoint: str | None = None) -> None:
+    def heartbeat(
+        self,
+        node_id: uuid.UUID,
+        endpoint: str | None = None,
+        peers: list[PeerReportRecord] | None = None,
+    ) -> None:
         """Updates when a node was last seen, and its endpoint if given.
 
-        Raises UnknownNodeError if the node is unknown.
+        Each `peers` entry upserts one directed reporter->peer row and stamps
+        `reported_at` (plus `probe_ran_at` when a probe result is present) with
+        the server clock.
+
+        Raises UnknownNodeError if the node or any reported peer is unknown.
         """
 
     @abstractmethod
@@ -72,3 +112,11 @@ class BaseStore(ABC):
     @abstractmethod
     def nodes(self) -> list[NodeRecord]:
         """Returns a list of all nodes with their full data."""
+
+    @abstractmethod
+    def pairs(self) -> list[PairRecord]:
+        """Returns every directed reporter->peer report.
+
+        Sorted by (reporter_overlay_ip, peer_overlay_ip). Pairs with no report
+        yet are absent, not returned with nulls.
+        """

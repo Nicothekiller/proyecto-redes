@@ -16,6 +16,7 @@
           requests
           pytest
           sqlalchemy
+          httpx2
         ]);
         checkTools = [
           pkgs.ruff
