@@ -3,12 +3,15 @@ from __future__ import annotations
 import argparse
 import logging
 import os
+import signal
 import subprocess
+import threading
 from pathlib import Path
 
 from client import netinfo, wg
 from client.api import DuplicatePubkeyError, ServerClient, server_url
 from client.config import IFACE, LISTEN_PORT, STATE_DIR
+from client.loop import Agent
 from client.render import render_config
 from client.state import load_or_create_state, save_state, write_private
 
@@ -24,6 +27,7 @@ def _parser() -> argparse.ArgumentParser:
     join.add_argument("--key", default=os.environ.get("API_KEY"), help="API key (or env API_KEY)")
     join.add_argument("--listen-port", type=int, default=LISTEN_PORT)
     join.add_argument("--state-dir", type=Path, default=STATE_DIR)
+    join.add_argument("--once", action="store_true", help="bring the tunnel up and exit")
     join.set_defaults(run=_join)
 
     down = commands.add_parser("down", help="take the tunnel down, identity is kept")
@@ -47,8 +51,9 @@ def _join(args: argparse.Namespace) -> int:
     pubkey = wg.public_key(private_key)
     endpoint = f"{netinfo.local_ip_towards(base_url)}:{state.listen_port}"
 
+    server = ServerClient(base_url, args.key)
     try:
-        registration = ServerClient(base_url, args.key).register(state.node_id, pubkey, endpoint)
+        registration = server.register(state.node_id, pubkey, endpoint)
     except DuplicatePubkeyError:
         log.error("server rejected this node: pubkey belongs to another node_id")
         return 1
@@ -65,7 +70,17 @@ def _join(args: argparse.Namespace) -> int:
     )
     wg.up(config_path)
     log.info("joined as %s with overlay ip %s", state.node_id, state.overlay_ip)
-    return 0
+    if args.once:
+        return 0
+
+    stop = threading.Event()
+    for signum in (signal.SIGINT, signal.SIGTERM):
+        signal.signal(signum, lambda *_: stop.set())
+    agent = Agent(server, base_url, state, private_key, config_path, registration.peers)
+    code = agent.run(stop)
+    wg.down(config_path)
+    log.info("tunnel down")
+    return code
 
 
 def _down(args: argparse.Namespace) -> int:

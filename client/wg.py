@@ -3,6 +3,8 @@ from __future__ import annotations
 import subprocess
 from pathlib import Path
 
+from client.api import Peer
+from client.config import KEEPALIVE_S
 from client.state import PRIVATE_KEY_FILE, write_private
 
 
@@ -41,3 +43,25 @@ def up(config_path: Path) -> None:
 def down(config_path: Path) -> None:
     if interface_exists(config_path.stem):
         _run(["wg-quick", "down", str(config_path)])
+
+
+def set_peer(iface: str, peer: Peer) -> None:
+    _run(
+        [
+            "wg",
+            "set",
+            iface,
+            "peer",
+            peer.pubkey,
+            "endpoint",
+            peer.endpoint,
+            "allowed-ips",
+            f"{peer.overlay_ip}/32",
+            "persistent-keepalive",
+            str(KEEPALIVE_S),
+        ]
+    )
+
+
+def remove_peer(iface: str, pubkey: str) -> None:
+    _run(["wg", "set", iface, "peer", pubkey, "remove"])

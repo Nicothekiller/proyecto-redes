@@ -69,7 +69,8 @@ def test_join_writes_private_config_and_brings_it_up(
     live_server: str, calls: list[list[str]], tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     monkeypatch.setattr(wg, "interface_exists", lambda iface: False)
-    args = ["join", "--server", live_server, "--key", "testkey", "--state-dir", str(tmp_path)]
+    args = ["join", "--server", live_server, "--key", "testkey", "--once"]
+    args += ["--state-dir", str(tmp_path)]
     assert main(args) == 0
 
     config = tmp_path / "wg0.conf"
@@ -82,7 +83,8 @@ def test_private_key_never_reaches_argv(
     live_server: str, calls: list[list[str]], tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     monkeypatch.setattr(wg, "interface_exists", lambda iface: True)
-    args = ["join", "--server", live_server, "--key", "testkey", "--state-dir", str(tmp_path)]
+    args = ["join", "--server", live_server, "--key", "testkey", "--once"]
+    args += ["--state-dir", str(tmp_path)]
     assert main(args) == 0
     assert not any("privA" in part for call in calls for part in call)
 

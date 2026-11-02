@@ -34,7 +34,8 @@ def fake_wg(monkeypatch: pytest.MonkeyPatch) -> list[list[str]]:
 
 
 def _join(server: str, state_dir: Path) -> int:
-    return main(["join", "--server", server, "--key", "testkey", "--state-dir", str(state_dir)])
+    args = ["join", "--server", server, "--key", "testkey", "--once"]
+    return main([*args, "--state-dir", str(state_dir)])
 
 
 def test_state_is_created_once(tmp_path: Path) -> None:

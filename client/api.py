@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import ipaddress
+import logging
+import re
 import uuid
 from dataclasses import dataclass
 from typing import Any
@@ -8,6 +11,10 @@ from urllib.parse import urlsplit
 import requests
 
 from client.config import REQUEST_TIMEOUT_S, SERVER_PORT
+
+log = logging.getLogger("client")
+
+PUBKEY_RE = re.compile(r"[A-Za-z0-9+/]{43}=")
 
 
 class DuplicatePubkeyError(Exception):
@@ -40,13 +47,30 @@ def server_url(server: str) -> str:
     return f"{parts.scheme}://{host}:{parts.port or SERVER_PORT}"
 
 
-def _to_peer(raw: dict[str, Any]) -> Peer:
-    return Peer(
-        node_id=uuid.UUID(raw["node_id"]),
-        overlay_ip=raw["overlay_ip"],
-        pubkey=raw["pubkey"],
-        endpoint=raw["endpoint"],
-    )
+def _valid_endpoint(endpoint: str) -> bool:
+    host, _, port = endpoint.rpartition(":")
+    try:
+        ipaddress.IPv4Address(host)
+    except ValueError:
+        return False
+    return port.isascii() and port.isdigit() and 0 < int(port) < 65536
+
+
+def _to_peers(raw_peers: list[dict[str, Any]]) -> list[Peer]:
+    peers = []
+    for raw in raw_peers:
+        if PUBKEY_RE.fullmatch(raw["pubkey"]) and _valid_endpoint(raw["endpoint"]):
+            peers.append(
+                Peer(
+                    node_id=uuid.UUID(raw["node_id"]),
+                    overlay_ip=str(ipaddress.IPv4Address(raw["overlay_ip"])),
+                    pubkey=raw["pubkey"],
+                    endpoint=raw["endpoint"],
+                )
+            )
+        else:
+            log.warning("ignoring peer %s: invalid pubkey or endpoint", raw["node_id"])
+    return peers
 
 
 class ServerClient:
@@ -74,5 +98,12 @@ class ServerClient:
         ).json()
         return Registration(
             overlay_ip=body["overlay_ip"],
-            peers=[_to_peer(peer) for peer in body["peers"]],
+            peers=_to_peers(body["peers"]),
         )
+
+    def peers(self, node_id: uuid.UUID) -> list[Peer]:
+        response = self._request("GET", "/peers", params={"node_id": str(node_id)})
+        return _to_peers(response.json())
+
+    def heartbeat(self, node_id: uuid.UUID, endpoint: str) -> None:
+        self._request("POST", "/heartbeat", json={"node_id": str(node_id), "endpoint": endpoint})
