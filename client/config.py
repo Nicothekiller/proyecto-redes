@@ -4,6 +4,8 @@ import os
 from pathlib import Path
 
 STATE_DIR = Path(os.environ.get("OVERLAY_STATE_DIR", "/var/lib/overlay-client"))
+IFACE = os.environ.get("OVERLAY_IFACE", "wg0")
 LISTEN_PORT = 51820
+KEEPALIVE_S = 25
 SERVER_PORT = 8000
 REQUEST_TIMEOUT_S = 5

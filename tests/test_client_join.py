@@ -24,9 +24,12 @@ def fake_wg(monkeypatch: pytest.MonkeyPatch) -> list[list[str]]:
             return subprocess.CompletedProcess(args, 0, stdout=f"private-{len(calls)}\n")
         if args == ["wg", "pubkey"]:
             return subprocess.CompletedProcess(args, 0, stdout="Q" * 43 + "=\n")
+        if args[0] == "wg-quick":
+            return subprocess.CompletedProcess(args, 0, stdout="")
         raise AssertionError(f"unexpected command: {args}")
 
     monkeypatch.setattr(wg.subprocess, "run", run)
+    monkeypatch.setattr(wg, "interface_exists", lambda iface: False)
     return calls
 
 

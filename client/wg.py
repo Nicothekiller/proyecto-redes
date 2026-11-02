@@ -23,3 +23,21 @@ def load_or_create_private_key(state_dir: Path) -> str:
 
 def public_key(private_key: str) -> str:
     return _run(["wg", "pubkey"], stdin=private_key)
+
+
+def interface_exists(iface: str) -> bool:
+    return Path("/sys/class/net", iface).exists()
+
+
+def up(config_path: Path) -> None:
+    iface = config_path.stem
+    if interface_exists(iface):
+        stripped = _run(["wg-quick", "strip", str(config_path)])
+        _run(["wg", "syncconf", iface, "/dev/stdin"], stdin=stripped)
+    else:
+        _run(["wg-quick", "up", str(config_path)])
+
+
+def down(config_path: Path) -> None:
+    if interface_exists(config_path.stem):
+        _run(["wg-quick", "down", str(config_path)])
