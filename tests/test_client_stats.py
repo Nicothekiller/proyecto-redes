@@ -43,6 +43,7 @@ def _fake_wg_show(monkeypatch: pytest.MonkeyPatch, pubkey: str = PUB_B) -> None:
         "latest-handshakes": f"{pubkey}\t1700000000\n",
         "transfer": f"{pubkey}\t100\t200\n",
         "endpoints": f"{pubkey}\t10.0.0.2:51820\n",
+        "listen-port": "51820",
     }
     monkeypatch.setattr(wg, "show", lambda iface, field: outputs[field])
 

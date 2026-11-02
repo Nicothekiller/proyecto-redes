@@ -68,5 +68,7 @@ def remove_peer(iface: str, pubkey: str) -> None:
     _run(["wg", "set", iface, "peer", pubkey, "remove"])
 
 
-def show(iface: str, field: Literal["latest-handshakes", "transfer", "endpoints"]) -> str:
+def show(
+    iface: str, field: Literal["latest-handshakes", "transfer", "endpoints", "listen-port"]
+) -> str:
     return _run(["wg", "show", iface, field])

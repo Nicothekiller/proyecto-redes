@@ -4,16 +4,16 @@ import logging
 import subprocess
 import threading
 import time
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 
 import requests
 
 from client import netinfo, probe, stats, wg
 from client.api import Peer, PeerReport, ServerClient, UnknownNodeError
-from client.config import POLL_INTERVAL_S
+from client.config import ENDPOINT_CHECK_S, POLL_INTERVAL_S
 from client.render import render_config
-from client.state import NodeState, write_private
+from client.state import NodeState, save_state, write_private
 
 log = logging.getLogger("client")
 
@@ -52,9 +52,28 @@ class Agent:
         self._config_path = config_path
         self._iface = config_path.stem
         self._peers = {peer.pubkey: peer for peer in peers}
+        self._reported_endpoint: str | None = None
 
     def _endpoint(self) -> str:
-        return f"{netinfo.local_ip_towards(self._base_url)}:{self._state.listen_port}"
+        port = wg.show(self._iface, "listen-port")
+        return f"{netinfo.local_ip_towards(self._base_url)}:{port}"
+
+    def _endpoint_changed(self) -> bool:
+        try:
+            endpoint = self._endpoint()
+        except (OSError, subprocess.CalledProcessError):
+            return False
+        if endpoint == self._reported_endpoint:
+            return False
+        log.info("endpoint changed: %s -> %s", self._reported_endpoint, endpoint)
+        return True
+
+    def _remember_listen_port(self, endpoint: str) -> None:
+        port = int(endpoint.rpartition(":")[2])
+        if port != self._state.listen_port:
+            self._state = replace(self._state, listen_port=port)
+            save_state(self._config_path.parent, self._state)
+            self._write_config()
 
     def _apply(self, delta: PeerDelta) -> None:
         for pubkey in delta.remove:
@@ -112,6 +131,8 @@ class Agent:
             if not reports:
                 raise
             self._server.heartbeat(self._state.node_id, endpoint)
+        self._reported_endpoint = endpoint
+        self._remember_listen_port(endpoint)
 
     def tick(self) -> None:
         self._heartbeat()
@@ -119,6 +140,15 @@ class Agent:
         if delta:
             self._apply(delta)
             self._write_config()
+
+    def _sleep(self, started: float, stop: threading.Event) -> bool:
+        deadline = started + POLL_INTERVAL_S
+        while (remaining := deadline - time.monotonic()) > 0:
+            if stop.wait(min(ENDPOINT_CHECK_S, remaining)):
+                return True
+            if self._endpoint_changed():
+                return False
+        return stop.is_set()
 
     def run(self, stop: threading.Event) -> int:
         while True:
@@ -132,5 +162,5 @@ class Agent:
                 log.warning("server unreachable, keeping current tunnels: %s", type(exc).__name__)
             except subprocess.CalledProcessError as exc:
                 log.warning("%s failed: %s", exc.cmd[0], exc.stderr.strip())
-            if stop.wait(max(0, POLL_INTERVAL_S - (time.monotonic() - started))):
+            if self._sleep(started, stop):
                 return 0

@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+import json
 import subprocess
 import threading
+import time
 import uuid
 from pathlib import Path
 from typing import Any
@@ -9,7 +11,7 @@ from typing import Any
 import pytest
 import requests
 
-from client import probe, stats, wg
+from client import netinfo, probe, stats, wg
 from client.api import Peer, ServerClient
 from client.loop import Agent, PeerDelta, diff_peers
 from client.state import NodeState
@@ -37,6 +39,7 @@ def wg_calls(monkeypatch: pytest.MonkeyPatch) -> list[list[str]]:
         return subprocess.CompletedProcess(args, 0, stdout="")
 
     monkeypatch.setattr(wg.subprocess, "run", run)
+    monkeypatch.setattr(wg, "show", lambda iface, field: "51820")
     monkeypatch.setattr(probe, "probe_all", lambda ips: {})
     monkeypatch.setattr(stats, "collect", lambda iface: {})
     return calls
@@ -234,3 +237,85 @@ def test_run_stops_when_this_node_is_deleted(
     agent = _agent(live_server, store, tmp_path)
     store.delete(A)
     assert agent.run(threading.Event()) == 1
+
+
+def test_heartbeat_reports_the_local_endpoint(
+    live_server: str, store: BaseStore, tmp_path: Path, wg_calls: list[list[str]]
+) -> None:
+    agent = _agent(live_server, store, tmp_path)
+    store.heartbeat(A, "10.9.9.9:51820")
+    agent.tick()
+    assert store.nodes()[0].endpoint == "127.0.0.1:51820"
+
+
+def test_ip_change_triggers_an_immediate_tick(
+    live_server: str,
+    store: BaseStore,
+    tmp_path: Path,
+    wg_calls: list[list[str]],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    agent = _agent(live_server, store, tmp_path)
+    agent.tick()
+    assert not agent._endpoint_changed()
+
+    monkeypatch.setattr(netinfo, "local_ip_towards", lambda server: "192.168.1.50")
+    assert agent._endpoint_changed()
+
+    agent.tick()
+    assert store.nodes()[0].endpoint == "192.168.1.50:51820"
+    assert not agent._endpoint_changed()
+
+
+def test_listen_port_change_is_reported_and_saved(
+    live_server: str,
+    store: BaseStore,
+    tmp_path: Path,
+    wg_calls: list[list[str]],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    agent = _agent(live_server, store, tmp_path)
+    agent.tick()
+
+    monkeypatch.setattr(wg, "show", lambda iface, field: "51999")
+    assert agent._endpoint_changed()
+    agent.tick()
+
+    assert store.nodes()[0].endpoint == "127.0.0.1:51999"
+    assert json.loads((tmp_path / "state.json").read_text())["listen_port"] == 51999
+    assert "ListenPort = 51999\n" in (tmp_path / "wg0.conf").read_text()
+
+
+def test_lost_route_is_not_an_endpoint_change(
+    live_server: str,
+    store: BaseStore,
+    tmp_path: Path,
+    wg_calls: list[list[str]],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    agent = _agent(live_server, store, tmp_path)
+    agent.tick()
+
+    def no_route(server: str) -> str:
+        raise OSError("network unreachable")
+
+    monkeypatch.setattr(netinfo, "local_ip_towards", no_route)
+    assert not agent._endpoint_changed()
+
+
+def test_sleep_ends_early_when_the_endpoint_changes(
+    live_server: str,
+    store: BaseStore,
+    tmp_path: Path,
+    wg_calls: list[list[str]],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    agent = _agent(live_server, store, tmp_path)
+    agent.tick()
+    monkeypatch.setattr("client.loop.POLL_INTERVAL_S", 30)
+    monkeypatch.setattr("client.loop.ENDPOINT_CHECK_S", 0.01)
+    monkeypatch.setattr(netinfo, "local_ip_towards", lambda server: "192.168.1.50")
+
+    started = time.monotonic()
+    assert agent._sleep(started, threading.Event()) is False
+    assert time.monotonic() - started < 5
