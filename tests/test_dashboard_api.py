@@ -3,12 +3,16 @@ from __future__ import annotations
 import time
 import uuid
 
+import pytest
 from fastapi.testclient import TestClient
 
 A = uuid.UUID("11111111-1111-1111-1111-111111111111")
 B = uuid.UUID("22222222-2222-2222-2222-222222222222")
 
 AUTH = {"Authorization": "Bearer testkey"}
+
+PUB_A = "A" * 43 + "="
+PUB_B = "B" * 43 + "="
 
 
 def _register(client: TestClient, node_id: uuid.UUID, pubkey: str, endpoint: str) -> None:
@@ -43,8 +47,8 @@ def _heartbeat_probe(client: TestClient) -> None:
 
 
 def test_nodes_exposes_heartbeat_and_connectivity(client: TestClient) -> None:
-    _register(client, A, "pubA", "10.0.0.1:51820")
-    _register(client, B, "pubB", "10.0.0.2:51820")
+    _register(client, A, PUB_A, "10.0.0.1:51820")
+    _register(client, B, PUB_B, "10.0.0.2:51820")
     _heartbeat_probe(client)
 
     response = client.get("/nodes", headers=AUTH)
@@ -55,15 +59,15 @@ def test_nodes_exposes_heartbeat_and_connectivity(client: TestClient) -> None:
     assert node_a["heartbeat_recent"] is True
     assert node_a["heartbeat_age_s"] >= 0
     assert node_a["connectivity_proven"] is True
-    assert node_a["pubkey"] == "pubA"
+    assert node_a["pubkey"] == PUB_A
     assert "peer_count" not in node_a
 
     assert nodes[str(B)]["connectivity_proven"] is True
 
 
 def test_status_reports_directed_pairs(client: TestClient) -> None:
-    _register(client, A, "pubA", "10.0.0.1:51820")
-    _register(client, B, "pubB", "10.0.0.2:51820")
+    _register(client, A, PUB_A, "10.0.0.1:51820")
+    _register(client, B, PUB_B, "10.0.0.2:51820")
     _heartbeat_probe(client)
 
     response = client.get("/status", headers=AUTH)
@@ -86,7 +90,7 @@ def test_status_reports_directed_pairs(client: TestClient) -> None:
 
 
 def test_status_without_reports_is_empty(client: TestClient) -> None:
-    _register(client, A, "pubA", "10.0.0.1:51820")
+    _register(client, A, PUB_A, "10.0.0.1:51820")
 
     body = client.get("/status", headers=AUTH).json()
     assert body["nodes_total"] == 1
@@ -100,7 +104,7 @@ def test_dashboard_requires_auth(client: TestClient) -> None:
 
 
 def test_heartbeat_rejects_unknown_fields(client: TestClient) -> None:
-    _register(client, A, "pubA", "10.0.0.1:51820")
+    _register(client, A, PUB_A, "10.0.0.1:51820")
 
     response = client.post(
         "/heartbeat",
@@ -111,11 +115,68 @@ def test_heartbeat_rejects_unknown_fields(client: TestClient) -> None:
 
 
 def test_responses_contain_no_secrets(client: TestClient) -> None:
-    _register(client, A, "pubA", "10.0.0.1:51820")
-    _register(client, B, "pubB", "10.0.0.2:51820")
+    _register(client, A, PUB_A, "10.0.0.1:51820")
+    _register(client, B, PUB_B, "10.0.0.2:51820")
     _heartbeat_probe(client)
 
     for path in ("/nodes", "/status"):
         text = client.get(path, headers=AUTH).text.lower()
         assert "private" not in text
         assert "preshared" not in text
+
+
+@pytest.mark.parametrize(
+    "pubkey",
+    ["", "pubA", PUB_A + "\n", PUB_A + "\nPostUp = touch /tmp/pwned", "!" * 43 + "="],
+)
+def test_register_rejects_malformed_pubkey(client: TestClient, pubkey: str) -> None:
+    response = client.post(
+        "/register",
+        json={"node_id": str(A), "pubkey": pubkey, "endpoint": "10.0.0.1:51820"},
+        headers=AUTH,
+    )
+    assert response.status_code == 422
+
+
+@pytest.mark.parametrize(
+    "endpoint",
+    [
+        "",
+        "10.0.0.1",
+        "10.0.0.1:0",
+        "10.0.0.1:65536",
+        "host.lan:51820",
+        "10.0.0.1:51820\nPostUp = touch /tmp/pwned",
+    ],
+)
+def test_malformed_endpoint_is_rejected_everywhere(client: TestClient, endpoint: str) -> None:
+    _register(client, A, PUB_A, "10.0.0.1:51820")
+    _register(client, B, PUB_B, "10.0.0.2:51820")
+
+    register = client.post(
+        "/register",
+        json={"node_id": str(A), "pubkey": PUB_A, "endpoint": endpoint},
+        headers=AUTH,
+    )
+    heartbeat = client.post(
+        "/heartbeat", json={"node_id": str(A), "endpoint": endpoint}, headers=AUTH
+    )
+    report = client.post(
+        "/heartbeat",
+        json={
+            "node_id": str(A),
+            "peers": [
+                {
+                    "peer_id": str(B),
+                    "last_handshake": 0,
+                    "rx_bytes": 0,
+                    "tx_bytes": 0,
+                    "endpoint": endpoint,
+                }
+            ],
+        },
+        headers=AUTH,
+    )
+    assert register.status_code == 422
+    assert heartbeat.status_code == 422
+    assert report.status_code == 422

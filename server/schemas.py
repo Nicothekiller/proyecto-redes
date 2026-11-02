@@ -1,15 +1,29 @@
 from __future__ import annotations
 
+import ipaddress
 import uuid
 from datetime import datetime
+from typing import Annotated
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import AfterValidator, BaseModel, ConfigDict, Field
+
+
+def _validate_endpoint(value: str) -> str:
+    host, _, port = value.rpartition(":")
+    ipaddress.IPv4Address(host)
+    if not (port.isascii() and port.isdigit() and 0 < int(port) < 65536):
+        raise ValueError("endpoint must be ipv4:port")
+    return value
+
+
+Pubkey = Annotated[str, Field(pattern=r"^[A-Za-z0-9+/]{43}=$")]
+Endpoint = Annotated[str, AfterValidator(_validate_endpoint)]
 
 
 class RegisterIn(BaseModel):
     node_id: uuid.UUID
-    pubkey: str = Field(min_length=1)
-    endpoint: str = Field(min_length=1)
+    pubkey: Pubkey
+    endpoint: Endpoint
 
 
 class PeerOut(BaseModel):
@@ -31,7 +45,7 @@ class PeerReport(BaseModel):
     last_handshake: int = Field(ge=0)
     rx_bytes: int = Field(ge=0)
     tx_bytes: int = Field(ge=0)
-    endpoint: str | None = Field(default=None, min_length=1)
+    endpoint: Endpoint | None = None
     probe_ok: bool | None = None
     probe_rtt_ms: float | None = Field(default=None, ge=0)
 
@@ -40,7 +54,7 @@ class HeartbeatIn(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     node_id: uuid.UUID
-    endpoint: str | None = Field(default=None, min_length=1)
+    endpoint: Endpoint | None = None
     peers: list[PeerReport] = Field(default_factory=list)
 
 
