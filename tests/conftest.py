@@ -1,7 +1,10 @@
 from __future__ import annotations
 
 import os
+import socket
 import tempfile
+import threading
+import time
 from collections.abc import Iterator
 from typing import TYPE_CHECKING
 
@@ -38,3 +41,25 @@ def client(store: BaseStore) -> Iterator[TestClient]:
     set_store(store)
     with TestClient(app) as test_client:
         yield test_client
+
+
+@pytest.fixture()
+def live_server(store: BaseStore) -> Iterator[str]:
+    import uvicorn
+
+    from server.main import app
+    from server.store import set_store
+
+    set_store(store)
+    sock = socket.socket()
+    sock.bind(("127.0.0.1", 0))
+    port = sock.getsockname()[1]
+    server = uvicorn.Server(uvicorn.Config(app, log_level="warning"))
+    thread = threading.Thread(target=server.run, kwargs={"sockets": [sock]}, daemon=True)
+    thread.start()
+    while not server.started:
+        time.sleep(0.01)
+    yield f"http://127.0.0.1:{port}"
+    server.should_exit = True
+    thread.join(5)
+    sock.close()

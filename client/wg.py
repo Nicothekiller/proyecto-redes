@@ -1,0 +1,25 @@
+from __future__ import annotations
+
+import subprocess
+from pathlib import Path
+
+from client.state import PRIVATE_KEY_FILE, write_private
+
+
+def _run(args: list[str], stdin: str | None = None) -> str:
+    result = subprocess.run(args, input=stdin, capture_output=True, text=True, check=True)
+    return result.stdout.strip()
+
+
+def load_or_create_private_key(state_dir: Path) -> str:
+    path = state_dir / PRIVATE_KEY_FILE
+    if path.is_file():
+        return path.read_text().strip()
+    state_dir.mkdir(mode=0o700, parents=True, exist_ok=True)
+    private_key = _run(["wg", "genkey"])
+    write_private(path, private_key)
+    return private_key
+
+
+def public_key(private_key: str) -> str:
+    return _run(["wg", "pubkey"], stdin=private_key)
