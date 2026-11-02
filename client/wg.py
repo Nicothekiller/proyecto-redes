@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import subprocess
 from pathlib import Path
+from typing import Literal
 
 from client.api import Peer
 from client.config import KEEPALIVE_S
@@ -65,3 +66,7 @@ def set_peer(iface: str, peer: Peer) -> None:
 
 def remove_peer(iface: str, pubkey: str) -> None:
     _run(["wg", "set", iface, "peer", pubkey, "remove"])
+
+
+def show(iface: str, field: Literal["latest-handshakes", "transfer", "endpoints"]) -> str:
+    return _run(["wg", "show", iface, field])

@@ -9,7 +9,7 @@ from typing import Any
 import pytest
 import requests
 
-from client import wg
+from client import probe, stats, wg
 from client.api import Peer, ServerClient
 from client.loop import Agent, PeerDelta, diff_peers
 from client.state import NodeState
@@ -37,6 +37,8 @@ def wg_calls(monkeypatch: pytest.MonkeyPatch) -> list[list[str]]:
         return subprocess.CompletedProcess(args, 0, stdout="")
 
     monkeypatch.setattr(wg.subprocess, "run", run)
+    monkeypatch.setattr(probe, "probe_all", lambda ips: {})
+    monkeypatch.setattr(stats, "collect", lambda iface: {})
     return calls
 
 

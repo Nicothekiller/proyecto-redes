@@ -3,13 +3,14 @@ from __future__ import annotations
 import logging
 import subprocess
 import threading
+import time
 from dataclasses import dataclass
 from pathlib import Path
 
 import requests
 
-from client import netinfo, wg
-from client.api import Peer, ServerClient, UnknownNodeError
+from client import netinfo, probe, stats, wg
+from client.api import Peer, PeerReport, ServerClient, UnknownNodeError
 from client.config import POLL_INTERVAL_S
 from client.render import render_config
 from client.state import NodeState, write_private
@@ -85,8 +86,35 @@ class Agent:
             ),
         )
 
+    def _reports(self) -> list[PeerReport]:
+        peer_stats = stats.collect(self._iface)
+        known = {pubkey: peer for pubkey, peer in self._peers.items() if pubkey in peer_stats}
+        probes = probe.probe_all([peer.overlay_ip for peer in known.values()])
+        return [
+            PeerReport(
+                peer_id=peer.node_id,
+                last_handshake=peer_stats[pubkey].last_handshake,
+                rx_bytes=peer_stats[pubkey].rx_bytes,
+                tx_bytes=peer_stats[pubkey].tx_bytes,
+                endpoint=peer_stats[pubkey].endpoint,
+                probe_ok=probes[peer.overlay_ip].ok,
+                probe_rtt_ms=probes[peer.overlay_ip].rtt_ms,
+            )
+            for pubkey, peer in known.items()
+        ]
+
+    def _heartbeat(self) -> None:
+        endpoint = self._endpoint()
+        reports = self._reports()
+        try:
+            self._server.heartbeat(self._state.node_id, endpoint, reports)
+        except UnknownNodeError:
+            if not reports:
+                raise
+            self._server.heartbeat(self._state.node_id, endpoint)
+
     def tick(self) -> None:
-        self._server.heartbeat(self._state.node_id, self._endpoint())
+        self._heartbeat()
         delta = diff_peers(self._peers, self._server.peers(self._state.node_id))
         if delta:
             self._apply(delta)
@@ -94,6 +122,7 @@ class Agent:
 
     def run(self, stop: threading.Event) -> int:
         while True:
+            started = time.monotonic()
             try:
                 self.tick()
             except UnknownNodeError:
@@ -101,5 +130,7 @@ class Agent:
                 return 1
             except (requests.RequestException, OSError) as exc:
                 log.warning("server unreachable, keeping current tunnels: %s", type(exc).__name__)
-            if stop.wait(POLL_INTERVAL_S):
+            except subprocess.CalledProcessError as exc:
+                log.warning("%s failed: %s", exc.cmd[0], exc.stderr.strip())
+            if stop.wait(max(0, POLL_INTERVAL_S - (time.monotonic() - started))):
                 return 0

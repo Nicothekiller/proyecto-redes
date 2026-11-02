@@ -39,4 +39,4 @@ pytest
 
 - `ruff`: formatter + linter, config in `pyproject.toml` (`[tool.ruff]`).
 - `ty`: type checker, config in `pyproject.toml` (`[tool.ty]`).
-- No comments in code unless asked; keep modules single-purpose (`config`, `schemas`, `auth`, `store/`, `routers/`; client: `state`, `wg`, `api`, `netinfo`, `cli`).
+- No comments in code unless asked; keep modules single-purpose (`config`, `schemas`, `auth`, `store/`, `routers/`; client: `state`, `wg`, `api`, `netinfo`, `render`, `loop`, `stats`, `probe`, `cli`).

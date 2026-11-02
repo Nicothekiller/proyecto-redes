@@ -138,7 +138,7 @@ Server (Nic):
 Client (Felipe):
 * Poll every ~10s: `POST /heartbeat {node_id, endpoint}` + `GET /peers`. Detect local endpoint change (LAN IP or port changed) and report it immediately.
 * Apply only deltas with `wg set` / `wg syncconf`: add new peers, update changed endpoints, remove deleted peers. Don't wipe private key or flap healthy tunnels.
-* Stats filter: parse `wg show <iface> latest-handshakes/endpoints/transfer` separately (or filter `dump` locally). POST only `{peer_pubkey_truncated?, overlay_ip, endpoint, last_handshake, rx, tx}`. Never send private/preshared keys, never log them.
+* Stats filter: parse `wg show <iface> latest-handshakes/endpoints/transfer` separately (or filter `dump` locally). POST per peer only `{peer_id, last_handshake, rx_bytes, tx_bytes, endpoint?, probe_ok?, probe_rtt_ms?}` (`last_handshake = 0` means never; the server forbids extra fields). Probe = one ping over the overlay per peer per poll, in parallel with a 1s timeout. Never send private/preshared keys, never log them.
 
 Done when: kill client -> shows offline after ~30s, traffic stops; restart same `node_id` -> same IP back, traffic resumes without manual steps. Forced endpoint change (change LAN IP / port explicitly, not just container restart) propagates within ~2 poll intervals.
 

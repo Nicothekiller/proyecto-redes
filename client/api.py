@@ -34,6 +34,29 @@ class Peer:
 
 
 @dataclass(frozen=True)
+class PeerReport:
+    peer_id: uuid.UUID
+    last_handshake: int
+    rx_bytes: int
+    tx_bytes: int
+    endpoint: str | None = None
+    probe_ok: bool | None = None
+    probe_rtt_ms: float | None = None
+
+    def to_json(self) -> dict[str, Any]:
+        fields = {
+            "peer_id": str(self.peer_id),
+            "last_handshake": self.last_handshake,
+            "rx_bytes": self.rx_bytes,
+            "tx_bytes": self.tx_bytes,
+            "endpoint": self.endpoint,
+            "probe_ok": self.probe_ok,
+            "probe_rtt_ms": self.probe_rtt_ms,
+        }
+        return {key: value for key, value in fields.items() if value is not None}
+
+
+@dataclass(frozen=True)
 class Registration:
     overlay_ip: str
     peers: list[Peer]
@@ -105,5 +128,15 @@ class ServerClient:
         response = self._request("GET", "/peers", params={"node_id": str(node_id)})
         return _to_peers(response.json())
 
-    def heartbeat(self, node_id: uuid.UUID, endpoint: str) -> None:
-        self._request("POST", "/heartbeat", json={"node_id": str(node_id), "endpoint": endpoint})
+    def heartbeat(
+        self, node_id: uuid.UUID, endpoint: str, reports: list[PeerReport] | None = None
+    ) -> None:
+        self._request(
+            "POST",
+            "/heartbeat",
+            json={
+                "node_id": str(node_id),
+                "endpoint": endpoint,
+                "peers": [report.to_json() for report in reports or []],
+            },
+        )
