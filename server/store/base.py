@@ -97,9 +97,10 @@ class BaseStore(ABC):
 
         Each `peers` entry upserts one directed reporter->peer row and stamps
         `reported_at` (plus `probe_ran_at` when a probe result is present) with
-        the server clock.
+        the server clock. Entries about unknown peers are skipped, a peer can
+        be deleted while its reporter still lists it.
 
-        Raises UnknownNodeError if the node or any reported peer is unknown.
+        Raises UnknownNodeError if the node is unknown.
         """
 
     @abstractmethod

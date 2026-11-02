@@ -2,9 +2,7 @@ from __future__ import annotations
 
 import uuid
 
-import pytest
-
-from server.store.base import BaseStore, PeerReportRecord, UnknownNodeError
+from server.store.base import BaseStore, PeerReportRecord
 
 A = uuid.UUID("11111111-1111-1111-1111-111111111111")
 B = uuid.UUID("22222222-2222-2222-2222-222222222222")
@@ -97,11 +95,25 @@ def test_heartbeat_failed_probe_keeps_none_rtt(store: BaseStore) -> None:
     assert pair.probe_rtt_ms is None
 
 
-def test_heartbeat_unknown_peer_raises(store: BaseStore) -> None:
-    _register(store, A, "pubA")
+def test_heartbeat_skips_unknown_peer_and_keeps_the_rest(store: BaseStore) -> None:
+    store.register(A, "pubA", "10.0.0.1:51820")
+    store.register(B, "pubB", "10.0.0.2:51820")
+    before = store.nodes()[0].last_heartbeat
+    unknown = uuid.UUID("99999999-9999-9999-9999-999999999999")
 
-    with pytest.raises(UnknownNodeError):
-        store.heartbeat(A, peers=[_report(B)])
+    store.heartbeat(
+        A,
+        "10.0.0.9:51820",
+        peers=[
+            PeerReportRecord(peer_id=unknown, last_handshake=0, rx_bytes=0, tx_bytes=0),
+            PeerReportRecord(peer_id=B, last_handshake=0, rx_bytes=1, tx_bytes=2),
+        ],
+    )
+
+    node = store.nodes()[0]
+    assert node.last_heartbeat > before
+    assert node.endpoint == "10.0.0.9:51820"
+    assert [pair.peer for pair in store.pairs()] == [B]
 
 
 def test_pairs_are_directed_and_sorted(store: BaseStore) -> None:

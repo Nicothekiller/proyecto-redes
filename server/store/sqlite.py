@@ -146,7 +146,7 @@ class SQLiteStore(BaseStore):
             if peers is not None:
                 for record in peers:
                     if session.get(Node, record.peer_id) is None:
-                        raise UnknownNodeError(f"peer {record.peer_id} isn't registered")
+                        continue
 
                     row = session.get(PeerStatus, (node_id, record.peer_id))
                     if row is None:
