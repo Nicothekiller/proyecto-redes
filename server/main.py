@@ -25,6 +25,11 @@ app.include_router(nodes.router)
 app.include_router(dashboard.router)
 
 
+@app.get("/health")
+def health() -> dict[str, str]:
+    return {"status": "ok"}
+
+
 def _error(status_code: int, detail: str) -> JSONResponse:
     return JSONResponse(status_code=status_code, content={"detail": detail})
 

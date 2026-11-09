@@ -58,6 +58,7 @@ def _to_pair_out(pair: PairRecord, now: datetime) -> PairOut:
         probe_ok=pair.probe_ok,
         probe_rtt_ms=pair.probe_rtt_ms,
         probe_ran_at=_as_utc(pair.probe_ran_at) if pair.probe_ran_at is not None else None,
+        reported_at=_as_utc(pair.reported_at),
         connectivity_proven=_connectivity_proven(pair, now),
     )
 

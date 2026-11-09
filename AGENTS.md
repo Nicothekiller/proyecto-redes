@@ -28,6 +28,42 @@ sudo python3 -m client join --server <IP> --key <API_KEY>
 
 State lives in `/var/lib/overlay-client` (`OVERLAY_STATE_DIR` or `--state-dir` to change it).
 
+## Dashboard
+
+The SvelteKit dashboard is a server-rendered Bun app. Its server calls FastAPI with `API_KEY`
+(`API_BASE_URL=http://127.0.0.1:8000` by default), so the browser never talks to FastAPI directly.
+
+```bash
+# terminal 1
+API_KEY=devkey uvicorn server.main:app --host 127.0.0.1 --port 8000
+
+# terminal 2
+cd frontend
+API_BASE_URL=http://127.0.0.1:8000 API_KEY=devkey bun run dev -- --host
+```
+
+Production:
+
+```bash
+cd frontend
+bun install --frozen-lockfile
+bun run --bun build
+API_BASE_URL=http://127.0.0.1:8000 API_KEY=devkey HOST=0.0.0.0 PORT=3000 bun ./build
+```
+
+## Docker Compose
+
+```bash
+cp .env.example .env
+docker compose up --build
+```
+
+- Dashboard: `http://<host>:3000/`
+- API for clients: `http://<host>:8000/`
+- Clients join with `sudo python3 -m client join --server <host>:8000 --key <API_KEY>`
+- SQLite data lives in the `overlay-db` volume; `docker compose down -v` resets it.
+- See `docs/despliegue.md`.
+
 ## Checks (run before considering any change done)
 
 ```bash
@@ -35,6 +71,11 @@ ruff format server client tests
 ruff check --fix server client tests
 ty check server client tests
 pytest
+
+cd frontend
+bun run check
+bun run lint
+bun run --bun build
 ```
 
 - `ruff`: formatter + linter, config in `pyproject.toml` (`[tool.ruff]`).
