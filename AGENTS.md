@@ -28,6 +28,8 @@ sudo python3 -m client join --server <IP> --key <API_KEY>
 
 State lives in `/var/lib/overlay-client` (`OVERLAY_STATE_DIR` or `--state-dir` to change it).
 
+Test bench (1 server + N clients, kernel WireGuard, deps from the flake): see `bench/README.md`.
+
 ## Checks (run before considering any change done)
 
 ```bash
