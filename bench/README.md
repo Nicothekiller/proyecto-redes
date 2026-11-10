@@ -30,6 +30,8 @@ On Windows, run the scripts from Git Bash.
 | `mesh.sh [limit]` | Every client reaches every other client over the overlay |
 | `reconvergence.sh` | Recovery time after a forced IP or port change (issue #12). `RUNS=10` by default. Results in `docs/reconvergencia.md` |
 | `overhead.sh` | RTT, throughput and CPU with vs without the tunnel, join time and agent memory (issue #16). `RUNS=5` by default. Results in `docs/overhead.md` |
+| `cases.sh` | Required M5 cases: join, kill, restart, server restart, dashboard states (issue #17). Restarts client-3 and the server |
+| `capture.sh` | tcpdump proof: LAN ping in clear vs overlay ping as WireGuard UDP. Leaves pcaps in `bench/captures/` (issue #17) |
 
 `lib.sh` holds the shared helpers. `on N cmd` runs a command inside client N with the devshell environment.
 
