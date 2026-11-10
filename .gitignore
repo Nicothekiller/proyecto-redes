@@ -6,3 +6,4 @@ state.json
 privatekey
 .venv/
 .env
+bench/captures/
