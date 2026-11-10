@@ -21,9 +21,27 @@ for n in json.load(sys.stdin):
 
 C3=overlay-bench-client-3
 A=$(overlay_ip 1)
+B=$(overlay_ip 2)
 C=$(overlay_ip 3)
+LAN_B=$(lan_ip 2)
 
 t=$(wait_ping 1 "$C" 25); check "join: new node reachable" $? "client-1 -> client-3 after $t s"
+
+http_code() { on 1 curl -s -o /dev/null -w '%{http_code}' --max-time 3 "$1" | tr -d '\r'; }
+on 2 sh -c "cd /tmp && (python3 -m http.server 8080 --bind $B >/dev/null 2>&1 &); sleep 1"
+code=$(http_code "http://$B:8080/")
+[ "$code" = 200 ]; check "http: GET over the overlay" $? "http://$B:8080/ -> $code"
+code=$(http_code "http://$LAN_B:8080/")
+[ "$code" = 000 ]; check "http: service bound to the overlay is not reachable over the LAN" $? "http://$LAN_B:8080/ -> $code"
+on 2 python3 -c "
+import glob, os, signal
+for cmdline in glob.glob('/proc/[0-9]*/cmdline'):
+    try:
+        if b'http.server' in open(cmdline, 'rb').read() and cmdline.split('/')[2] != str(os.getpid()):
+            os.kill(int(cmdline.split('/')[2]), signal.SIGTERM)
+    except OSError:
+        pass
+"
 
 docker kill "$C3" >/dev/null
 sleep 2

@@ -16,6 +16,8 @@ Resultado de `bench/cases.sh` con 3 clientes:
 | Caso | Resultado | Detalle |
 |---|---|---|
 | Join: un nodo nuevo es alcanzable | PASS | client-1 → client-3 en 2 s |
+| HTTP por el overlay | PASS | `curl` a un `http.server` ligado a la IP de overlay de client-2: 200 |
+| HTTP: el mismo servicio no responde por la LAN | PASS | El mismo `curl` a la IP de LAN no conecta |
 | Kill: el tráfico se detiene | PASS | El ping al nodo matado falla |
 | Kill: aparece offline tras ~30 s | PASS | `heartbeat_recent=false` |
 | Kill: sigue registrado | PASS | La fila sigue en `/nodes`; offline no es borrado |
@@ -60,5 +62,5 @@ El script deja `bench/captures/lan.pcap` y `bench/captures/overlay.pcap` (fuera 
 
 ## Límites
 
-- Todo es en contenedores sobre un solo host. Falta repetir los casos y las mediciones en el hotspot con dos máquinas físicas y `nix develop`.
+- Todo es en contenedores sobre un solo host. **Falta la prueba en al menos dos máquinas físicas que pide la propuesta**; la guía está en `docs/pruebas-fisicas.md`.
 - Las capturas de pantalla de Wireshark no están en el repo: se sacan de los pcap.
