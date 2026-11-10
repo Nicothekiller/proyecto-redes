@@ -23,8 +23,10 @@ Client (Linux, root for WireGuard):
 
 ```bash
 nix develop
-sudo python3 -m client join --server <IP> --key <API_KEY>
+sudo env "PATH=$PATH" python3 -m client join --server <IP> --key <API_KEY>
 ```
+
+`sudo` alone would reset `PATH` and run the system python instead of the flake's.
 
 State lives in `/var/lib/overlay-client` (`OVERLAY_STATE_DIR` or `--state-dir` to change it).
 

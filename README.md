@@ -23,7 +23,7 @@ Todo dentro del devshell de nix:
 ```bash
 nix develop
 API_KEY=<key> uvicorn server.main:app --host 0.0.0.0 --port 8000      # servidor
-sudo python3 -m client join --server <IP-del-servidor> --key <key>     # cada cliente
+sudo env "PATH=$PATH" python3 -m client join --server <IP-del-servidor> --key <key>   # cada cliente
 ```
 
 Para probar sin varias máquinas, el banco de `bench/` levanta 1 servidor y N clientes en Docker con WireGuard de kernel:
@@ -39,7 +39,8 @@ Detalles en `bench/README.md`. Las verificaciones de código (`ruff`, `ty`, `pyt
 
 | Documento | Contenido |
 |---|---|
-| `docs/pruebas.md` | Casos requeridos (join, caída, regreso, reinicio del servidor, estados del dashboard) y prueba de cifrado con tcpdump |
+| `docs/pruebas.md` | Casos requeridos (join, HTTP, caída, regreso, reinicio del servidor, estados del dashboard) y prueba de cifrado con tcpdump |
+| `docs/pruebas-fisicas.md` | Guía para repetir casos, mediciones y captura en dos o más PCs en un hotspot |
 | `docs/reconvergencia.md` | Tiempo de recuperación ante cambio de IP o puerto: ~1 s si se mueve un nodo, ≤ 17 s si se mueven dos |
 | `docs/overhead.md` | RTT, throughput y CPU con y sin túnel, tiempo de join y memoria del agente |
 | `docs/auditoria-integracion.md` | Revisión del servidor frente al cliente, pendientes y preguntas de defensa |
@@ -51,5 +52,5 @@ Detalles en `bench/README.md`. Las verificaciones de código (`ruff`, `ty`, `pyt
 | M0 a M3: servidor, cliente, persistencia, reconvergencia | Hecho |
 | M4: API del dashboard | Hecho |
 | M4: interfaz del dashboard (#15) | En curso |
-| M5: banco, mediciones, prueba de cifrado y documentación | Hecho en contenedores; falta repetirlo en máquinas físicas |
+| M5: banco, mediciones, prueba de cifrado y documentación | Hecho en el banco Docker; falta la prueba en máquinas físicas (`docs/pruebas-fisicas.md`) |
 | M6: relay (#18) | Fuera de alcance |
