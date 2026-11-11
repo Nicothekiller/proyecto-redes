@@ -29,4 +29,4 @@ Poll de 10 s, chequeo local de endpoint cada 1 s, keepalive de 25 s. 10 repetici
 
 - La resolución es de ~1 s, porque cada ping fallido espera 1 s. El 1,05 s repetido refleja esa espera, no una precisión de centésimas.
 - Es un banco en contenedores, sin pérdida ni latencia de una red real. Falta repetirlo en el hotspot con máquinas físicas (M5).
-- El banco usado todavía no está en el repo; entra con el #13.
+- Se reproduce con `RUNS=10 bench/reconvergence.sh` sobre el banco de `bench/`.
