@@ -33,16 +33,18 @@
 	}
 </script>
 
-<section class="overflow-hidden rounded-lg border border-slate-200 bg-white">
+<section
+	class="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-[0_4px_16px_-8px_rgba(15,23,42,0.12)]"
+>
 	<div class="overflow-x-auto">
 		<table class="w-full min-w-[72rem] border-collapse text-left text-sm">
-			<caption class="border-b border-slate-200 px-4 py-3 text-left">
+			<caption class="border-b border-slate-100 px-5 py-4 text-left">
 				<span class="text-sm font-semibold text-slate-900">Pares dirigidos reportados</span>
 				<span class="ml-2 text-xs text-slate-500">
 					{pairs.length} reportes · «Δ» compara con la instantánea anterior
 				</span>
 			</caption>
-			<thead class="bg-slate-50 text-xs tracking-wider text-slate-500 uppercase">
+			<thead class="bg-slate-50/80 text-xs tracking-wider text-slate-500 uppercase">
 				<tr>
 					<th scope="col" class="px-4 py-3 font-medium">Reportero → par</th>
 					<th scope="col" class="px-4 py-3 font-medium">Endpoint</th>
@@ -53,7 +55,7 @@
 					<th scope="col" class="px-4 py-3 font-medium">Reportado</th>
 				</tr>
 			</thead>
-			<tbody class="divide-y divide-slate-800">
+			<tbody class="divide-y divide-slate-100">
 				{#if pairs.length === 0}
 					<tr>
 						<td colspan="7" class="px-4 py-10 text-center text-sm text-slate-500">

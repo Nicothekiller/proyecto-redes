@@ -147,11 +147,14 @@
 	});
 </script>
 
-<div class="space-y-6">
-	<div class="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+<div class="space-y-8">
+	<div class="flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
 		<div>
-			<h2 class="text-2xl font-semibold tracking-tight text-slate-900">Estado de la red</h2>
-			<p class="mt-1 text-sm text-slate-500">Un vistazo a los nodos y conexiones del overlay.</p>
+			<p class="mb-2 text-xs font-semibold tracking-[0.16em] text-blue-700 uppercase">
+				Panel de control
+			</p>
+			<h2 class="text-3xl font-semibold tracking-tight text-slate-900">Estado de la red</h2>
+			<p class="mt-2 text-sm text-slate-500">Un vistazo a los nodos y conexiones del overlay.</p>
 		</div>
 
 		<button
@@ -159,7 +162,7 @@
 			onclick={() => void refresh(true)}
 			disabled={busy}
 			aria-busy={refreshing}
-			class="inline-flex w-fit items-center gap-2 rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 disabled:cursor-not-allowed disabled:opacity-60"
+			class="inline-flex w-fit items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 shadow-sm transition-colors hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 disabled:cursor-not-allowed disabled:opacity-60"
 		>
 			<svg
 				xmlns="http://www.w3.org/2000/svg"
@@ -182,6 +185,12 @@
 
 	{#if dashboard}
 		<div>
+			<div class="mb-3 flex flex-col gap-1">
+				<h3 class="text-lg font-semibold tracking-tight text-slate-900">Detalle de la red</h3>
+				<p class="text-sm text-slate-500">
+					Consulta los dispositivos registrados y sus conexiones.
+				</p>
+			</div>
 			<div role="tablist" aria-label="Datos de la red" class="flex gap-6 border-b border-slate-200">
 				{#each [{ id: 'nodes', label: 'Nodos', count: dashboard.nodes.length }, { id: 'pairs', label: 'Pares', count: dashboard.status.pairs.length }] as tab (tab.id)}
 					<button
@@ -200,7 +209,10 @@
 								: 'border-transparent text-slate-500 hover:text-slate-800'
 						]}
 					>
-						{tab.label} <span class="ml-1 text-xs text-slate-500">{tab.count}</span>
+						{tab.label}
+						<span class="ml-1 rounded-md bg-slate-100 px-1.5 py-0.5 text-xs text-slate-600"
+							>{tab.count}</span
+						>
 					</button>
 				{/each}
 			</div>

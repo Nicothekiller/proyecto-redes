@@ -66,7 +66,9 @@
 	}
 </script>
 
-<section class="overflow-hidden rounded-lg border border-slate-200 bg-white">
+<section
+	class="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-[0_4px_16px_-8px_rgba(15,23,42,0.12)]"
+>
 	{#if deleteError}<p
 			role="alert"
 			class="border-b border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700"
@@ -75,13 +77,13 @@
 		</p>{/if}
 	<div class="overflow-x-auto">
 		<table class="w-full min-w-[80rem] border-collapse text-left text-sm">
-			<caption class="border-b border-slate-200 px-4 py-3 text-left">
+			<caption class="border-b border-slate-100 px-5 py-4 text-left">
 				<span class="text-sm font-semibold text-slate-900">Nodos registrados</span>
 				<span class="ml-2 text-xs text-slate-500">
 					{nodes.length} en el registro · «conectividad probada» = al menos un par dirigido
 				</span>
 			</caption>
-			<thead class="bg-slate-50 text-xs tracking-wider text-slate-500 uppercase">
+			<thead class="bg-slate-50/80 text-xs tracking-wider text-slate-500 uppercase">
 				<tr>
 					<th scope="col" class="px-4 py-3 font-medium">IP overlay</th>
 					<th scope="col" class="px-4 py-3 font-medium">Nodo</th>
@@ -95,7 +97,7 @@
 					{#if admin}<th scope="col" class="px-4 py-3 font-medium">Acciones</th>{/if}
 				</tr>
 			</thead>
-			<tbody class="divide-y divide-slate-800">
+			<tbody class="divide-y divide-slate-100">
 				{#if nodes.length === 0}
 					<tr>
 						<td colspan={admin ? 10 : 9} class="px-4 py-10 text-center text-sm text-slate-500">
