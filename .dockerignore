@@ -1,0 +1,15 @@
+.git
+.gitignore
+__pycache__
+*.py[cod]
+*.db
+*.db-*
+.env
+.env.*
+!.env.example
+.pytest_cache
+.ruff_cache
+.opencode
+frontend/node_modules
+frontend/.svelte-kit
+frontend/build

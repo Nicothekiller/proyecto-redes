@@ -17,6 +17,7 @@ if TYPE_CHECKING:
 
 _TMPDIR = tempfile.mkdtemp(prefix="wg-coord-tests-")
 os.environ["API_KEY"] = "testkey"
+os.environ["DASHBOARD_API_KEY"] = "dashboard-testkey"
 os.environ["DATABASE_URL"] = f"sqlite:///{_TMPDIR}/test.db"
 
 

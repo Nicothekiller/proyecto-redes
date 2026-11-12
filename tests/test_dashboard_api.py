@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import time
 import uuid
+from datetime import datetime
 
 import pytest
 from fastapi.testclient import TestClient
@@ -13,6 +14,24 @@ AUTH = {"Authorization": "Bearer testkey"}
 
 PUB_A = "A" * 43 + "="
 PUB_B = "B" * 43 + "="
+
+
+def test_dashboard_key_is_read_only(client: TestClient) -> None:
+    headers = {"Authorization": "Bearer dashboard-testkey"}
+    assert client.get("/nodes", headers=headers).status_code == 200
+    assert client.get("/status", headers=headers).status_code == 200
+    assert client.get("/dashboard/session", headers=headers).json() == {"role": "read"}
+    assert client.get("/dashboard/session", headers=AUTH).json() == {"role": "admin"}
+    assert client.get("/peers", headers=headers).status_code == 401
+    assert client.post("/register", headers=headers, json={}).status_code == 401
+    assert client.post("/heartbeat", headers=headers, json={}).status_code == 401
+    assert client.delete(f"/nodes/{A}", headers=headers).status_code == 401
+
+
+def test_dashboard_rejects_invalid_key(client: TestClient) -> None:
+    for path in ("/nodes", "/status"):
+        assert client.get(path).status_code == 401
+        assert client.get(path, headers={"Authorization": "Bearer wrong"}).status_code == 401
 
 
 def _register(client: TestClient, node_id: uuid.UUID, pubkey: str, endpoint: str) -> None:
@@ -87,6 +106,12 @@ def test_status_reports_directed_pairs(client: TestClient) -> None:
     assert pair["handshake_age_s"] is not None
     assert pair["connectivity_proven"] is True
     assert pair["probe_ran_at"] is not None
+    reported_at = datetime.fromisoformat(pair["reported_at"])
+    assert reported_at.tzinfo is not None
+
+    _heartbeat_probe(client)
+    updated = client.get("/status", headers=AUTH).json()["pairs"][0]
+    assert datetime.fromisoformat(updated["reported_at"]) > reported_at
 
 
 def test_status_without_reports_is_empty(client: TestClient) -> None:
@@ -101,6 +126,12 @@ def test_dashboard_requires_auth(client: TestClient) -> None:
     assert client.get("/nodes").status_code == 401
     assert client.get("/status").status_code == 401
     assert client.get("/nodes", headers={"Authorization": "Bearer wrong"}).status_code == 401
+
+
+def test_health_does_not_require_auth(client: TestClient) -> None:
+    response = client.get("/health")
+    assert response.status_code == 200
+    assert response.json() == {"status": "ok"}
 
 
 def test_heartbeat_rejects_unknown_fields(client: TestClient) -> None:

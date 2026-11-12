@@ -1,0 +1,34 @@
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.server
+    environment:
+      API_KEY: ${API_KEY:?set API_KEY in .env}
+      DASHBOARD_API_KEY: ${DASHBOARD_API_KEY:-}
+      DATABASE_URL: sqlite:////data/overlay.db
+      OFFLINE_AFTER_S: ${OFFLINE_AFTER_S:-30}
+      PROBE_TTL_S: ${PROBE_TTL_S:-15}
+    volumes:
+      - overlay-db:/data
+    ports:
+      - "8000:8000"
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    environment:
+      API_BASE_URL: http://backend:8000
+      HOST: 0.0.0.0
+      PORT: 3000
+    ports:
+      - "3000:3000"
+    depends_on:
+      backend:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  overlay-db:

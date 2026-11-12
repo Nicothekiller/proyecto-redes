@@ -37,6 +37,8 @@
             pkgs.sqlite
             pkgs.tcpdump
             pkgs.netcat-gnu
+            pkgs.bun
+            pkgs.nodejs
           ] ++ checkTools;
 
           shellHook = ''
@@ -51,6 +53,7 @@
 
           packages = [
             python
+            pkgs.bun
           ] ++ checkTools;
         };
       });

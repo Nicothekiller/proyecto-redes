@@ -82,6 +82,7 @@ class PairOut(BaseModel):
     probe_ok: bool | None
     probe_rtt_ms: float | None
     probe_ran_at: datetime | None
+    reported_at: datetime
     connectivity_proven: bool
 
 

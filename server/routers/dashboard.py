@@ -1,16 +1,29 @@
 from __future__ import annotations
 
+import secrets
 from datetime import UTC, datetime
 
 from fastapi import APIRouter, Depends
+from fastapi.security import HTTPAuthorizationCredentials
 
-from server.auth import require_auth
-from server.config import OFFLINE_AFTER_S, PROBE_TTL_S
+from server.auth import bearer, require_dashboard_auth
+from server.config import API_KEY, OFFLINE_AFTER_S, PROBE_TTL_S
 from server.schemas import NodeOut, PairOut, StatusOut
 from server.store import get_store
 from server.store.base import NodeRecord, PairRecord
 
 router = APIRouter(tags=["dashboard"])
+
+
+@router.get("/dashboard/session")
+def dashboard_session(
+    _auth: bool = Depends(require_dashboard_auth),
+    creds: HTTPAuthorizationCredentials = Depends(bearer),
+) -> dict[str, str]:
+    role = (
+        "admin" if secrets.compare_digest(creds.credentials.encode(), API_KEY.encode()) else "read"
+    )
+    return {"role": role}
 
 
 def _as_utc(value: datetime) -> datetime:
@@ -58,12 +71,13 @@ def _to_pair_out(pair: PairRecord, now: datetime) -> PairOut:
         probe_ok=pair.probe_ok,
         probe_rtt_ms=pair.probe_rtt_ms,
         probe_ran_at=_as_utc(pair.probe_ran_at) if pair.probe_ran_at is not None else None,
+        reported_at=_as_utc(pair.reported_at),
         connectivity_proven=_connectivity_proven(pair, now),
     )
 
 
 @router.get("/nodes", response_model=list[NodeOut])
-def nodes(_auth: bool = Depends(require_auth)) -> list[NodeOut]:
+def nodes(_auth: bool = Depends(require_dashboard_auth)) -> list[NodeOut]:
     store = get_store()
     now = datetime.now(UTC)
     pairs = store.pairs()
@@ -71,7 +85,7 @@ def nodes(_auth: bool = Depends(require_auth)) -> list[NodeOut]:
 
 
 @router.get("/status", response_model=StatusOut)
-def status(_auth: bool = Depends(require_auth)) -> StatusOut:
+def status(_auth: bool = Depends(require_dashboard_auth)) -> StatusOut:
     store = get_store()
     now = datetime.now(UTC)
     nodes_total = len(store.nodes())
