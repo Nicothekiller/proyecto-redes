@@ -16,6 +16,21 @@
 	let lastSuccessOverride = $state<string | null>(null);
 	let refreshing = $state(false);
 	let busy = $state(false);
+	let activeTab = $state<'nodes' | 'pairs'>('nodes');
+
+	function tabKeydown(event: KeyboardEvent) {
+		if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
+		event.preventDefault();
+		activeTab =
+			event.key === 'Home'
+				? 'nodes'
+				: event.key === 'End'
+					? 'pairs'
+					: activeTab === 'nodes'
+						? 'pairs'
+						: 'nodes';
+		document.getElementById(`tab-${activeTab}`)?.focus();
+	}
 
 	let inFlight: AbortController | null = null;
 
@@ -135,13 +150,8 @@
 <div class="space-y-6">
 	<div class="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
 		<div>
-			<p class="font-mono text-[0.65rem] tracking-[0.25em] text-emerald-400/80 uppercase">
-				plano de control
-			</p>
-			<h2 class="mt-1 text-2xl font-semibold text-slate-50">Estado del overlay</h2>
-			<p class="mt-1 max-w-2xl text-sm text-slate-400">
-				Instantánea de nodos, heartbeats y pares dirigidos reportados al coordinador.
-			</p>
+			<h2 class="text-2xl font-semibold tracking-tight text-slate-900">Estado de la red</h2>
+			<p class="mt-1 text-sm text-slate-500">Un vistazo a los nodos y conexiones del overlay.</p>
 		</div>
 
 		<button
@@ -149,7 +159,7 @@
 			onclick={() => void refresh(true)}
 			disabled={busy}
 			aria-busy={refreshing}
-			class="inline-flex w-fit items-center gap-2 rounded-lg border border-slate-700 bg-slate-900 px-4 py-2 text-sm font-medium text-slate-200 transition-colors hover:border-emerald-500/40 hover:bg-slate-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-400 disabled:cursor-not-allowed disabled:opacity-60"
+			class="inline-flex w-fit items-center gap-2 rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 disabled:cursor-not-allowed disabled:opacity-60"
 		>
 			<svg
 				xmlns="http://www.w3.org/2000/svg"
@@ -171,16 +181,67 @@
 	<StatusBar {dashboard} {error} {lastSuccess} refreshMs={REFRESH_MS} />
 
 	{#if dashboard}
-		<NodeTable nodes={dashboard.nodes} pairs={dashboard.status.pairs} {offlineAfterS} />
-
-		<PairTable pairs={dashboard.status.pairs} {previousPairs} {offlineAfterS} {asOfMs} />
+		<div>
+			<div role="tablist" aria-label="Datos de la red" class="flex gap-6 border-b border-slate-200">
+				{#each [{ id: 'nodes', label: 'Nodos', count: dashboard.nodes.length }, { id: 'pairs', label: 'Pares', count: dashboard.status.pairs.length }] as tab (tab.id)}
+					<button
+						id={`tab-${tab.id}`}
+						type="button"
+						role="tab"
+						aria-selected={activeTab === tab.id}
+						aria-controls={`panel-${tab.id}`}
+						tabindex={activeTab === tab.id ? 0 : -1}
+						onclick={() => (activeTab = tab.id as 'nodes' | 'pairs')}
+						onkeydown={tabKeydown}
+						class={[
+							'-mb-px border-b-2 px-1 py-3 text-sm font-medium focus-visible:outline-2 focus-visible:outline-blue-600',
+							activeTab === tab.id
+								? 'border-blue-600 text-blue-700'
+								: 'border-transparent text-slate-500 hover:text-slate-800'
+						]}
+					>
+						{tab.label} <span class="ml-1 text-xs text-slate-500">{tab.count}</span>
+					</button>
+				{/each}
+			</div>
+			<div
+				id="panel-nodes"
+				role="tabpanel"
+				tabindex="0"
+				aria-labelledby="tab-nodes"
+				hidden={activeTab !== 'nodes'}
+				class="pt-5"
+			>
+				{#if activeTab === 'nodes'}
+					<NodeTable
+						nodes={dashboard.nodes}
+						pairs={dashboard.status.pairs}
+						{offlineAfterS}
+						admin={data.role === 'admin'}
+						ondeleted={() => void refresh()}
+					/>
+				{/if}
+			</div>
+			<div
+				id="panel-pairs"
+				role="tabpanel"
+				tabindex="0"
+				aria-labelledby="tab-pairs"
+				hidden={activeTab !== 'pairs'}
+				class="pt-5"
+			>
+				{#if activeTab === 'pairs'}
+					<PairTable pairs={dashboard.status.pairs} {previousPairs} {offlineAfterS} {asOfMs} />
+				{/if}
+			</div>
+		</div>
 	{:else}
 		<section
-			class="rounded-2xl border border-dashed border-slate-700 bg-slate-900/40 px-6 py-12 text-center"
+			class="rounded-lg border border-dashed border-slate-300 bg-slate-50 px-6 py-12 text-center"
 			aria-live="polite"
 		>
 			<p
-				class="mx-auto grid size-12 place-items-center rounded-full border border-slate-700 bg-slate-900 text-slate-400"
+				class="mx-auto grid size-12 place-items-center rounded-full border border-slate-200 bg-white text-slate-500"
 				aria-hidden="true"
 			>
 				<svg
@@ -197,13 +258,13 @@
 					<path d="M12 7v5l3 2" />
 				</svg>
 			</p>
-			<h3 class="mt-4 text-lg font-semibold text-slate-100">Esperando datos del backend</h3>
-			<p class="mx-auto mt-2 max-w-xl text-sm text-slate-400">
+			<h3 class="mt-4 text-lg font-semibold text-slate-900">Esperando datos del backend</h3>
+			<p class="mx-auto mt-2 max-w-xl text-sm text-slate-600">
 				Todavía no hay una instantánea válida del coordinador. El panel sigue consultando cada 5 s y
 				mostrará los nodos en cuanto el backend responda.
 			</p>
 			{#if error}
-				<p class="mx-auto mt-3 max-w-xl text-xs break-words text-rose-300/80">{error}</p>
+				<p class="mx-auto mt-3 max-w-xl text-xs break-words text-rose-700">{error}</p>
 			{/if}
 		</section>
 	{/if}

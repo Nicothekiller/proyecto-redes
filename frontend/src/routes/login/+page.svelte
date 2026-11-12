@@ -27,11 +27,13 @@
 	}
 </script>
 
-<section class="mx-auto max-w-md rounded-2xl border border-slate-800 bg-slate-900/60 p-6">
-	<h2 class="text-xl font-semibold text-slate-50">Acceso al dashboard</h2>
-	<p class="mt-2 text-sm text-slate-400">Introduce la clave del dashboard para continuar.</p>
+<section class="mx-auto max-w-md rounded-lg border border-slate-200 bg-white p-6">
+	<h2 class="text-xl font-semibold text-slate-900">Acceso al dashboard</h2>
+	<p class="mt-2 text-sm text-slate-600">
+		Introduce la clave de lectura o de administrador para continuar.
+	</p>
 	<form method="POST" onsubmit={login} class="mt-6 space-y-4">
-		<label for="key" class="block text-sm font-medium text-slate-200">Clave del dashboard</label>
+		<label for="key" class="block text-sm font-medium text-slate-700">Clave de acceso</label>
 		<input
 			id="key"
 			name="key"
@@ -39,15 +41,15 @@
 			type="password"
 			required
 			autocomplete="current-password"
-			class="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-slate-100 focus:border-emerald-400 focus:outline-none"
+			class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 focus:border-emerald-400 focus:outline-none"
 		/>
 		{#if error}
-			<p role="alert" class="text-sm text-rose-400">{error}</p>
+			<p role="alert" class="text-sm text-rose-700">{error}</p>
 		{/if}
 		<button
 			type="submit"
 			disabled={busy}
-			class="rounded-lg bg-emerald-500 px-4 py-2 font-medium text-slate-950 hover:bg-emerald-400"
+			class="rounded-lg bg-blue-600 px-4 py-2 font-medium text-white hover:bg-blue-700"
 		>
 			Entrar
 		</button>

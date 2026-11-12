@@ -20,6 +20,8 @@ def test_dashboard_key_is_read_only(client: TestClient) -> None:
     headers = {"Authorization": "Bearer dashboard-testkey"}
     assert client.get("/nodes", headers=headers).status_code == 200
     assert client.get("/status", headers=headers).status_code == 200
+    assert client.get("/dashboard/session", headers=headers).json() == {"role": "read"}
+    assert client.get("/dashboard/session", headers=AUTH).json() == {"role": "admin"}
     assert client.get("/peers", headers=headers).status_code == 401
     assert client.post("/register", headers=headers, json={}).status_code == 401
     assert client.post("/heartbeat", headers=headers, json={}).status_code == 401

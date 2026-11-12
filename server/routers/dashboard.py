@@ -1,16 +1,29 @@
 from __future__ import annotations
 
+import secrets
 from datetime import UTC, datetime
 
 from fastapi import APIRouter, Depends
+from fastapi.security import HTTPAuthorizationCredentials
 
-from server.auth import require_dashboard_auth
-from server.config import OFFLINE_AFTER_S, PROBE_TTL_S
+from server.auth import bearer, require_dashboard_auth
+from server.config import API_KEY, OFFLINE_AFTER_S, PROBE_TTL_S
 from server.schemas import NodeOut, PairOut, StatusOut
 from server.store import get_store
 from server.store.base import NodeRecord, PairRecord
 
 router = APIRouter(tags=["dashboard"])
+
+
+@router.get("/dashboard/session")
+def dashboard_session(
+    _auth: bool = Depends(require_dashboard_auth),
+    creds: HTTPAuthorizationCredentials = Depends(bearer),
+) -> dict[str, str]:
+    role = (
+        "admin" if secrets.compare_digest(creds.credentials.encode(), API_KEY.encode()) else "read"
+    )
+    return {"role": role}
 
 
 def _as_utc(value: datetime) -> datetime:

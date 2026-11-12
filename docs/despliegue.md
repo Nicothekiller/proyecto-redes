@@ -7,14 +7,15 @@ Navegador -> SvelteKit/Bun :3000 -> FastAPI :8000 -> SQLite
 Clientes WireGuard -> FastAPI :8000
 ```
 
-El servidor de SvelteKit usa `DASHBOARD_API_KEY` para consultar FastAPI. El navegador solo habla
-con SvelteKit; la clave se introduce en `/login` y no se incluye en el bundle del cliente.
+El navegador solo habla con SvelteKit. En `/login` se introduce `DASHBOARD_API_KEY` para una sesión
+de lectura o `API_KEY` para una sesión de administrador. La clave se guarda en una cookie HttpOnly
+y SvelteKit la utiliza para consultar FastAPI; no se incluye en el bundle del cliente.
 
 ## Docker Compose
 
 ```bash
 cp .env.example .env
-# configurar API_KEY y DASHBOARD_API_KEY en .env
+# configurar API_KEY y, si se desea acceso de lectura, DASHBOARD_API_KEY en .env
 docker compose up --build
 ```
 
@@ -39,7 +40,7 @@ sudo python3 -m client join --server <IP-LAN-DEL-SERVIDOR>:8000 --key <API_KEY>
 | Variable | Servicio | Descripción |
 |---|---|---|
 | `API_KEY` | backend | Clave de los clientes; permite lectura y escritura. |
-| `DASHBOARD_API_KEY` | ambos | Clave distinta, para iniciar sesión y leer `/nodes` y `/status`. |
+| `DASHBOARD_API_KEY` | backend | Clave distinta, para iniciar sesión de lectura y leer `/nodes` y `/status`. |
 | `API_BASE_URL` | frontend | URL interna de FastAPI; en Compose es `http://backend:8000`. |
 | `DATABASE_URL` | backend | En Compose es `sqlite:////data/overlay.db`. |
 | `OFFLINE_AFTER_S` | backend | Segundos sin heartbeat para considerar un nodo offline. |
@@ -56,7 +57,7 @@ API_KEY=devkey DASHBOARD_API_KEY=dashboard-devkey uvicorn server.main:app --host
 # terminal 2
 nix develop
 cd frontend
-API_BASE_URL=http://127.0.0.1:8000 DASHBOARD_API_KEY=dashboard-devkey bun run dev -- --host
+API_BASE_URL=http://127.0.0.1:8000 bun run dev -- --host
 ```
 
 El dashboard queda en `http://localhost:5173/`. El servidor de desarrollo de SvelteKit consulta
@@ -68,11 +69,10 @@ FastAPI con `API_BASE_URL`, por lo que tampoco hace falta un proxy de Vite.
 cd frontend
 bun install --frozen-lockfile
 bun run --bun build
-API_BASE_URL=http://127.0.0.1:8000 DASHBOARD_API_KEY=dashboard-devkey HOST=0.0.0.0 PORT=3000 bun ./build
+API_BASE_URL=http://127.0.0.1:8000 HOST=0.0.0.0 PORT=3000 bun ./build
 ```
 
-`DASHBOARD_API_KEY` es obligatoria en tiempo de ejecución (el build no la necesita). El login
-requiere JavaScript. `adapter-bun` necesita
+El frontend no necesita claves en su entorno. El login requiere JavaScript. `adapter-bun` necesita
 Bun 1.4.4 o superior y el build debe ejecutarse con `bun run --bun build`.
 
 ## Verificación
@@ -85,7 +85,9 @@ curl -i http://localhost:3000/api/dashboard # 401 sin sesión
 
 ## Seguridad
 
-El dashboard muestra datos internos del overlay. La sesión usa una cookie HttpOnly de 12 horas;
-cambiar la clave invalida las sesiones. HTTP no cifra la clave ni la cookie: usa una red de confianza
-o HTTPS. La clave del dashboard no permite registrar, modificar ni eliminar nodos. El backend puede
-arrancar sin `DASHBOARD_API_KEY` cuando solo se usan clientes; Compose requiere ambas claves.
+El dashboard muestra datos internos del overlay. La cookie HttpOnly caduca en el navegador después
+de 12 horas; cambiar la clave invalida la sesión. HTTP no cifra la clave ni la cookie: usa una red de
+confianza o HTTPS. La clave del dashboard no permite registrar, modificar ni eliminar nodos. Los
+administradores pueden eliminar desde la interfaz nodos sin heartbeat reciente; primero se debe
+apagar WireGuard en el nodo. El backend puede arrancar sin `DASHBOARD_API_KEY` cuando solo se usan
+clientes; sin esa clave, el dashboard solo permite sesiones de administrador.

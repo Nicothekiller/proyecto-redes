@@ -1,9 +1,9 @@
 import { BackendError, getDashboard } from '#lib/server/backend.ts';
 import type { RequestHandler } from './$types';
 
-export const GET: RequestHandler = async () => {
+export const GET: RequestHandler = async ({ locals }) => {
 	try {
-		return Response.json(await getDashboard(), {
+		return Response.json(await getDashboard(locals.key), {
 			headers: { 'cache-control': 'no-store' }
 		});
 	} catch (error) {

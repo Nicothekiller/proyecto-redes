@@ -3,7 +3,10 @@
 declare global {
 	namespace App {
 		// interface Error {}
-		// interface Locals {}
+		interface Locals {
+			key: string;
+			role: 'admin' | 'read';
+		}
 		// interface PageData {}
 		// interface PageState {}
 		// interface Platform {}

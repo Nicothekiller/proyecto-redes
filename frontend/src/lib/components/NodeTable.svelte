@@ -6,9 +6,41 @@
 		nodes: Node[];
 		pairs: Pair[];
 		offlineAfterS: number;
+		admin: boolean;
+		ondeleted: () => void;
 	}
 
-	let { nodes, pairs, offlineAfterS }: Props = $props();
+	let { nodes, pairs, offlineAfterS, admin, ondeleted }: Props = $props();
+	let deleting = $state<string | null>(null);
+	let deleteError = $state('');
+
+	async function removeNode(node: Node) {
+		if (node.heartbeat_recent || deleting) return;
+		if (
+			!confirm(
+				`¿Eliminar el nodo ${node.overlay_ip} (${node.node_id})? Asegúrate de que su interfaz WireGuard esté apagada. Su IP podrá reutilizarse inmediatamente.`
+			)
+		)
+			return;
+		deleting = node.node_id;
+		deleteError = '';
+		try {
+			const response = await fetch(`/api/dashboard/nodes/${encodeURIComponent(node.node_id)}`, {
+				method: 'DELETE',
+				headers: { 'content-type': 'application/json' }
+			});
+			if (!response.ok) {
+				const result = await response.json();
+				deleteError = result.error ?? 'No se pudo eliminar el nodo';
+				return;
+			}
+			ondeleted();
+		} catch {
+			deleteError = 'No se pudo contactar al servidor';
+		} finally {
+			deleting = null;
+		}
+	}
 
 	const registeredPeers = $derived(Math.max(0, nodes.length - 1));
 
@@ -34,16 +66,22 @@
 	}
 </script>
 
-<section class="overflow-hidden rounded-2xl border border-slate-800 bg-slate-900/60">
+<section class="overflow-hidden rounded-lg border border-slate-200 bg-white">
+	{#if deleteError}<p
+			role="alert"
+			class="border-b border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700"
+		>
+			{deleteError}
+		</p>{/if}
 	<div class="overflow-x-auto">
 		<table class="w-full min-w-[80rem] border-collapse text-left text-sm">
-			<caption class="border-b border-slate-800 px-4 py-3 text-left">
-				<span class="text-sm font-semibold text-slate-100">Nodos registrados</span>
+			<caption class="border-b border-slate-200 px-4 py-3 text-left">
+				<span class="text-sm font-semibold text-slate-900">Nodos registrados</span>
 				<span class="ml-2 text-xs text-slate-500">
 					{nodes.length} en el registro · «conectividad probada» = al menos un par dirigido
 				</span>
 			</caption>
-			<thead class="bg-slate-900/80 text-xs tracking-wider text-slate-500 uppercase">
+			<thead class="bg-slate-50 text-xs tracking-wider text-slate-500 uppercase">
 				<tr>
 					<th scope="col" class="px-4 py-3 font-medium">IP overlay</th>
 					<th scope="col" class="px-4 py-3 font-medium">Nodo</th>
@@ -54,12 +92,13 @@
 					<th scope="col" class="px-4 py-3 font-medium">Pares probados</th>
 					<th scope="col" class="px-4 py-3 font-medium">Registrado</th>
 					<th scope="col" class="px-4 py-3 font-medium">Conectividad probada</th>
+					{#if admin}<th scope="col" class="px-4 py-3 font-medium">Acciones</th>{/if}
 				</tr>
 			</thead>
 			<tbody class="divide-y divide-slate-800">
 				{#if nodes.length === 0}
 					<tr>
-						<td colspan="9" class="px-4 py-10 text-center text-sm text-slate-500">
+						<td colspan={admin ? 10 : 9} class="px-4 py-10 text-center text-sm text-slate-500">
 							Sin nodos registrados todavía. El panel se actualizará cuando un cliente haga
 							<i>join</i> y envíe su primer heartbeat.
 						</td>
@@ -69,26 +108,26 @@
 						{@const proven = provenPeers[node.node_id]?.length ?? 0}
 						<tr
 							class={[
-								'transition-colors hover:bg-slate-800/40',
-								!node.heartbeat_recent && 'bg-slate-950/30'
+								'transition-colors hover:bg-slate-50',
+								!node.heartbeat_recent && 'bg-slate-50'
 							]}
 						>
-							<td class="px-4 py-3 font-mono text-xs whitespace-nowrap text-slate-100">
+							<td class="px-4 py-3 font-mono text-xs whitespace-nowrap text-slate-900">
 								{node.overlay_ip}
 							</td>
-							<td class="px-4 py-3 font-mono text-xs whitespace-nowrap text-slate-300">
+							<td class="px-4 py-3 font-mono text-xs whitespace-nowrap text-slate-700">
 								<span title={node.node_id}>{shortId(node.node_id)}</span>
 							</td>
-							<td class="px-4 py-3 font-mono text-xs whitespace-nowrap text-slate-300">
+							<td class="px-4 py-3 font-mono text-xs whitespace-nowrap text-slate-700">
 								<span title={node.pubkey}>{truncatePubkey(node.pubkey)}</span>
 							</td>
-							<td class="px-4 py-3 font-mono text-xs text-slate-400">
+							<td class="px-4 py-3 font-mono text-xs text-slate-600">
 								{node.endpoint || '—'}
 							</td>
 							<td class="px-4 py-3 whitespace-nowrap">
 								<div class="flex flex-col gap-1">
 									<span
-										class="font-mono text-xs text-slate-300 tabular-nums"
+										class="font-mono text-xs text-slate-700 tabular-nums"
 										title={`último heartbeat: ${formatDateTime(node.last_heartbeat)}`}
 									>
 										{formatAge(node.heartbeat_age_s)}
@@ -97,8 +136,8 @@
 										class={[
 											'inline-flex w-fit items-center gap-1.5 rounded-full px-2 py-0.5 text-[0.65rem] font-medium ring-1 ring-inset',
 											node.heartbeat_recent
-												? 'bg-sky-500/15 text-sky-300 ring-sky-500/30'
-												: 'bg-slate-700/40 text-slate-400 ring-slate-600/40'
+												? 'bg-sky-500/15 text-sky-700 ring-sky-500/30'
+												: 'bg-slate-100 text-slate-600 ring-slate-200'
 										]}
 									>
 										<span
@@ -117,17 +156,17 @@
 									{/if}
 								</div>
 							</td>
-							<td class="px-4 py-3 font-mono text-xs text-slate-300 tabular-nums">
+							<td class="px-4 py-3 font-mono text-xs text-slate-700 tabular-nums">
 								{registeredPeers}
 							</td>
 							<td class="px-4 py-3 font-mono text-xs whitespace-nowrap tabular-nums">
-								<span class={proven > 0 ? 'text-emerald-300' : 'text-slate-400'}>
+								<span class={proven > 0 ? 'text-emerald-700' : 'text-slate-600'}>
 									{proven} de {registeredPeers}
 								</span>
 							</td>
 							<td class="px-4 py-3 whitespace-nowrap">
 								<span
-									class="inline-flex items-center gap-1.5 rounded-full bg-slate-700/40 px-2 py-0.5 text-[0.65rem] font-medium text-slate-300 ring-1 ring-slate-600/40 ring-inset"
+									class="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-2 py-0.5 text-[0.65rem] font-medium text-slate-700 ring-1 ring-slate-200 ring-inset"
 								>
 									<span aria-hidden="true" class="size-1.5 rounded-full bg-slate-400"></span>
 									registrado
@@ -136,7 +175,7 @@
 							<td class="px-4 py-3 whitespace-nowrap">
 								{#if node.connectivity_proven}
 									<span
-										class="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/15 px-2 py-0.5 text-[0.65rem] font-medium text-emerald-300 ring-1 ring-emerald-500/30 ring-inset"
+										class="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/15 px-2 py-0.5 text-[0.65rem] font-medium text-emerald-700 ring-1 ring-emerald-500/30 ring-inset"
 										title="connectivity_proven a nivel de nodo: al menos un par dirigido probado"
 									>
 										<span aria-hidden="true" class="size-1.5 rounded-full bg-emerald-400"></span>
@@ -144,7 +183,7 @@
 									</span>
 								{:else}
 									<span
-										class="inline-flex items-center gap-1.5 rounded-full bg-slate-800 px-2 py-0.5 text-[0.65rem] font-medium text-slate-400 ring-1 ring-slate-700 ring-inset"
+										class="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-2 py-0.5 text-[0.65rem] font-medium text-slate-600 ring-1 ring-slate-200 ring-inset"
 										title="connectivity_proven a nivel de nodo: ningún par dirigido probado"
 									>
 										<span aria-hidden="true" class="size-1.5 rounded-full bg-slate-600"></span>
@@ -152,15 +191,29 @@
 									</span>
 								{/if}
 							</td>
+							{#if admin}
+								<td class="px-4 py-3">
+									<button
+										type="button"
+										disabled={node.heartbeat_recent || deleting !== null}
+										onclick={() => removeNode(node)}
+										title={node.heartbeat_recent
+											? 'Solo se pueden eliminar nodos sin heartbeat reciente'
+											: 'Eliminar nodo'}
+										class="rounded border border-rose-200 px-3 py-1 text-xs font-medium text-rose-700 hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-40"
+										>{deleting === node.node_id ? 'Eliminando…' : 'Eliminar'}</button
+									>
+								</td>
+							{/if}
 						</tr>
 					{/each}
 				{/if}
 			</tbody>
 		</table>
 	</div>
-	<p class="border-t border-slate-800 px-4 py-3 text-xs text-slate-500">
+	<p class="border-t border-slate-200 px-4 py-3 text-xs text-slate-500">
 		«Conectividad probada» a nivel de nodo se calcula como <strong
-			class="font-medium text-slate-400">al menos un par</strong
+			class="font-medium text-slate-600">al menos un par</strong
 		>
 		dirigido probado. El detalle por par está en la tabla de pares.
 	</p>

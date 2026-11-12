@@ -30,8 +30,9 @@ State lives in `/var/lib/overlay-client` (`OVERLAY_STATE_DIR` or `--state-dir` t
 
 ## Dashboard
 
-The SvelteKit dashboard is a server-rendered Bun app. Its server calls FastAPI with `DASHBOARD_API_KEY`
-(`API_BASE_URL=http://127.0.0.1:8000` by default), so the browser never talks to FastAPI directly.
+The SvelteKit dashboard is a server-rendered Bun app. Login accepts `DASHBOARD_API_KEY` (read-only)
+or `API_KEY` (admin), stores it in an HttpOnly cookie and proxies requests to FastAPI
+(`API_BASE_URL=http://127.0.0.1:8000` by default). The browser never talks to FastAPI directly.
 
 ```bash
 # terminal 1
@@ -39,7 +40,7 @@ API_KEY=devkey DASHBOARD_API_KEY=dashboard-devkey uvicorn server.main:app --host
 
 # terminal 2
 cd frontend
-API_BASE_URL=http://127.0.0.1:8000 DASHBOARD_API_KEY=dashboard-devkey bun run dev -- --host
+API_BASE_URL=http://127.0.0.1:8000 bun run dev -- --host
 ```
 
 Production:
@@ -48,14 +49,14 @@ Production:
 cd frontend
 bun install --frozen-lockfile
 bun run --bun build
-API_BASE_URL=http://127.0.0.1:8000 DASHBOARD_API_KEY=dashboard-devkey HOST=0.0.0.0 PORT=3000 bun ./build
+API_BASE_URL=http://127.0.0.1:8000 HOST=0.0.0.0 PORT=3000 bun ./build
 ```
 
 ## Docker Compose
 
 ```bash
 cp .env.example .env
-# Set API_KEY and DASHBOARD_API_KEY in .env
+# Set API_KEY and optionally DASHBOARD_API_KEY in .env
 docker compose up --build
 ```
 
