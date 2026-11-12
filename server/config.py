@@ -22,6 +22,10 @@ API_KEY = os.environ.get("API_KEY")
 if not API_KEY:
     raise RuntimeError("API_KEY env var is required")
 
+DASHBOARD_API_KEY = os.environ.get("DASHBOARD_API_KEY")
+if DASHBOARD_API_KEY and DASHBOARD_API_KEY == API_KEY:
+    raise RuntimeError("DASHBOARD_API_KEY must differ from API_KEY")
+
 DATABASE_URL = os.environ.get("DATABASE_URL", "sqlite:///./overlay.db")
 
 OVERLAY_NET = ipaddress.ip_network("10.100.0.0/24")

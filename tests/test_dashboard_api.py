@@ -16,6 +16,22 @@ PUB_A = "A" * 43 + "="
 PUB_B = "B" * 43 + "="
 
 
+def test_dashboard_key_is_read_only(client: TestClient) -> None:
+    headers = {"Authorization": "Bearer dashboard-testkey"}
+    assert client.get("/nodes", headers=headers).status_code == 200
+    assert client.get("/status", headers=headers).status_code == 200
+    assert client.get("/peers", headers=headers).status_code == 401
+    assert client.post("/register", headers=headers, json={}).status_code == 401
+    assert client.post("/heartbeat", headers=headers, json={}).status_code == 401
+    assert client.delete(f"/nodes/{A}", headers=headers).status_code == 401
+
+
+def test_dashboard_rejects_invalid_key(client: TestClient) -> None:
+    for path in ("/nodes", "/status"):
+        assert client.get(path).status_code == 401
+        assert client.get(path, headers={"Authorization": "Bearer wrong"}).status_code == 401
+
+
 def _register(client: TestClient, node_id: uuid.UUID, pubkey: str, endpoint: str) -> None:
     response = client.post(
         "/register",

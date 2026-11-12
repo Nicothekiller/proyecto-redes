@@ -1,13 +1,14 @@
 # Dashboard (SvelteKit + Bun)
 
 Server-rendered dashboard for the WireGuard coordination server. The SvelteKit server queries
-FastAPI with a private `API_KEY`, so the browser never talks to FastAPI and no CORS is needed.
+FastAPI with a read-only `DASHBOARD_API_KEY`. Users enter that key at `/login`; the browser
+never talks to FastAPI directly and no CORS is needed.
 
 ## Development
 
 ```bash
 bun install --frozen-lockfile
-API_BASE_URL=http://127.0.0.1:8000 API_KEY=devkey bun run dev -- --host
+API_BASE_URL=http://127.0.0.1:8000 DASHBOARD_API_KEY=dashboard-devkey bun run dev -- --host
 ```
 
 Open `http://localhost:5173/`.
@@ -17,10 +18,11 @@ Open `http://localhost:5173/`.
 ```bash
 bun install --frozen-lockfile
 bun run --bun build
-API_BASE_URL=http://127.0.0.1:8000 API_KEY=devkey HOST=0.0.0.0 PORT=3000 bun ./build
+API_BASE_URL=http://127.0.0.1:8000 DASHBOARD_API_KEY=dashboard-devkey HOST=0.0.0.0 PORT=3000 bun ./build
 ```
 
-`API_KEY` is required at runtime (the build does not need it). `adapter-bun` requires Bun 1.4.4+
+`DASHBOARD_API_KEY` is required at runtime (the build does not need it). Login requires JavaScript.
+`adapter-bun` requires Bun 1.4.4+
 and the build must run with `bun run --bun build`.
 
 ## Checks

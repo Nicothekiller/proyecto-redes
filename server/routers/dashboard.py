@@ -4,7 +4,7 @@ from datetime import UTC, datetime
 
 from fastapi import APIRouter, Depends
 
-from server.auth import require_auth
+from server.auth import require_dashboard_auth
 from server.config import OFFLINE_AFTER_S, PROBE_TTL_S
 from server.schemas import NodeOut, PairOut, StatusOut
 from server.store import get_store
@@ -64,7 +64,7 @@ def _to_pair_out(pair: PairRecord, now: datetime) -> PairOut:
 
 
 @router.get("/nodes", response_model=list[NodeOut])
-def nodes(_auth: bool = Depends(require_auth)) -> list[NodeOut]:
+def nodes(_auth: bool = Depends(require_dashboard_auth)) -> list[NodeOut]:
     store = get_store()
     now = datetime.now(UTC)
     pairs = store.pairs()
@@ -72,7 +72,7 @@ def nodes(_auth: bool = Depends(require_auth)) -> list[NodeOut]:
 
 
 @router.get("/status", response_model=StatusOut)
-def status(_auth: bool = Depends(require_auth)) -> StatusOut:
+def status(_auth: bool = Depends(require_dashboard_auth)) -> StatusOut:
     store = get_store()
     now = datetime.now(UTC)
     nodes_total = len(store.nodes())

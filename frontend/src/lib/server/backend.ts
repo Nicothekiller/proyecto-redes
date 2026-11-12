@@ -1,4 +1,4 @@
-import { API_BASE_URL, API_KEY } from '$app/env/private';
+import { API_BASE_URL, DASHBOARD_API_KEY } from '$app/env/private';
 import type { Dashboard, Node, Status } from '#lib/types.ts';
 
 const BASE_URL = (API_BASE_URL ?? 'http://127.0.0.1:8000').replace(/\/+$/, '');
@@ -17,7 +17,7 @@ async function backendFetch<T>(path: string): Promise<T> {
 	try {
 		response = await fetch(`${BASE_URL}${path}`, {
 			headers: {
-				Authorization: `Bearer ${API_KEY}`,
+				Authorization: `Bearer ${DASHBOARD_API_KEY}`,
 				Accept: 'application/json'
 			},
 			signal: AbortSignal.timeout(TIMEOUT_MS)

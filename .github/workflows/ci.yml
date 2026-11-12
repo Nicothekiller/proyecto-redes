@@ -42,7 +42,7 @@ jobs:
         run: nix develop .#ci -c bash -c 'cd frontend && bun run --bun build'
 
       - name: Compose config
-        run: API_KEY=ci docker compose config >/dev/null
+        run: API_KEY=ci DASHBOARD_API_KEY=dashboard-ci docker compose config >/dev/null
 
       - name: Backend image
         run: docker build -f Dockerfile.server -t overlay-backend .

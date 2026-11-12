@@ -24,6 +24,6 @@ USER bun
 EXPOSE 3000
 
 HEALTHCHECK --interval=5s --timeout=3s --start-period=5s --retries=10 \
-    CMD bun -e "fetch('http://127.0.0.1:3000/').then((r) => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"
+    CMD bun -e "fetch('http://127.0.0.1:3000/login').then((r) => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"
 
 CMD ["bun", "./build"]
